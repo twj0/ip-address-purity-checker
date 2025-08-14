@@ -10,13 +10,9 @@ ENVIRONMENT = "production"
 # 如果您已有KV命名空间，请替换下面的ID
 [[kv_namespaces]]
 binding = "IP_CACHE"
-id = ""  # 留空，部署脚本会自动创建并填入
-preview_id = ""  # 留空，部署脚本会自动创建并填入
+id = "e0f261583d9c4eb59802ed2f4374a1e8"  # 从部署日志中获取的KV命名空间ID
+preview_id = ""  # 预览环境ID
 
 # 定时任务配置 - 北京时间00:00 (UTC 16:00)
-[[triggers]]
+[triggers]
 crons = ["0 16 * * *"]  # 每日UTC 16:00执行 (北京时间00:00)
-
-# 资源限制
-[limits]
-cpu_ms = 50000  # 50秒CPU时间限制

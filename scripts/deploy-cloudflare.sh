@@ -170,21 +170,36 @@ deploy_pages() {
 # 部署Cloudflare Workers（定时任务）
 deploy_workers() {
     log_info "部署Cloudflare Workers（定时任务）..."
-    
-    # 部署Worker
-    wrangler deploy
-    
+
+    # 检查是否为免费计划，使用适当的配置文件
+    if [ -f "wrangler-free.toml" ]; then
+        log_info "检测到免费计划配置，使用wrangler-free.toml"
+        wrangler deploy --config wrangler-free.toml
+    else
+        wrangler deploy
+    fi
+
     if [ $? -eq 0 ]; then
         log_success "Cloudflare Workers部署成功！"
-        
+
         # 获取Worker URL
         WORKER_URL="https://ip-purity-checker.${ACCOUNT_ID}.workers.dev"
         log_success "Worker访问地址: $WORKER_URL"
-        
+
         return 0
     else
-        log_error "Cloudflare Workers部署失败"
-        return 1
+        log_warning "Workers部署失败，可能是免费计划限制"
+        log_info "尝试使用免费计划兼容配置..."
+
+        # 尝试使用免费计划配置
+        if wrangler deploy --config wrangler-free.toml; then
+            log_success "使用免费计划配置部署成功！"
+            WORKER_URL="https://ip-purity-checker.${ACCOUNT_ID}.workers.dev"
+            return 0
+        else
+            log_error "Workers部署失败，请检查配置"
+            return 1
+        fi
     fi
 }
 
