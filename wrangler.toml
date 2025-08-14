@@ -3,25 +3,18 @@ main = "cloudflare/worker.js"
 compatibility_date = "2024-01-01"
 
 # 环境变量
-[env.production.vars]
+[vars]
 ENVIRONMENT = "production"
 
 # KV存储绑定
-[[env.production.kv_namespaces]]
+[[kv_namespaces]]
 binding = "IP_CACHE"
 id = "your-kv-namespace-id"  # 需要替换为实际的KV namespace ID
+preview_id = "your-preview-kv-namespace-id"  # 需要替换为预览环境的KV namespace ID
 
 # 定时任务配置 - 北京时间00:00 (UTC 16:00)
-[[env.production.triggers]]
+[[triggers]]
 crons = ["0 16 * * *"]  # 每日UTC 16:00执行 (北京时间00:00)
-
-# 开发环境配置
-[env.development]
-name = "ip-purity-checker-dev"
-
-[[env.development.kv_namespaces]]
-binding = "IP_CACHE"
-preview_id = "your-preview-kv-namespace-id"  # 需要替换为预览环境的KV namespace ID
 
 # 资源限制
 [limits]

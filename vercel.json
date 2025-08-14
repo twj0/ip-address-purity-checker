@@ -30,13 +30,34 @@
   },
   "functions": {
     "api/**/*.py": {
-      "runtime": "python3.11"
+      "runtime": "python3.11",
+      "maxDuration": 30,
+      "memory": 1024
     }
   },
   "crons": [
     {
       "path": "/api/scheduled-check",
       "schedule": "0 16 * * *"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        },
+        {
+          "key": "Access-Control-Allow-Methods",
+          "value": "GET, POST, OPTIONS"
+        },
+        {
+          "key": "Access-Control-Allow-Headers",
+          "value": "Content-Type"
+        }
+      ]
     }
   ]
 }

@@ -11,60 +11,62 @@ from http.server import BaseHTTPRequestHandler
 # 添加项目根目录到Python路径
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
-try:
-    from src.ip_checker.ipinfo_provider import fetch_ip_info_ipinfo
-    from src.ip_checker.ip_utils import is_pure_ip
-except ImportError:
-    # 如果导入失败，使用简化版本
-    import requests
-    
-    def fetch_ip_info_ipinfo(ip):
-        token = os.environ.get('IPINFO_TOKEN')
-        headers = {'Authorization': f'Bearer {token}'} if token else {}
-        
-        try:
-            response = requests.get(f'https://ipinfo.io/{ip}/json', headers=headers, timeout=10)
-            if response.status_code == 200:
-                data = response.json()
-                return {
-                    'status': 'success',
-                    'query': data.get('ip', ip),
-                    'country': data.get('country', ''),
-                    'city': data.get('city', ''),
-                    'org': data.get('org', ''),
-                    'privacy': data.get('privacy', {}),
-                    'hosting': data.get('privacy', {}).get('hosting', False),
-                    'vpn': data.get('privacy', {}).get('vpn', False),
-                    'proxy': data.get('privacy', {}).get('proxy', False),
-                    'tor': data.get('privacy', {}).get('tor', False)
-                }
-        except Exception as e:
-            print(f"Error fetching IP info: {e}")
-        
-        return None
-    
-    def is_pure_ip(ip_info):
-        if not ip_info or ip_info.get('status') != 'success':
-            return False
-        
-        # 检查privacy信息
-        if any(ip_info.get(key, False) for key in ['hosting', 'vpn', 'proxy', 'tor']):
-            return False
-        
-        # 关键词检测
-        text = ' '.join([
-            ip_info.get('org', ''),
-            ip_info.get('isp', ''),
-            ip_info.get('as', '')
-        ]).lower()
-        
-        black_keywords = [
-            'amazon', 'aws', 'google', 'gcp', 'microsoft', 'azure',
-            'cloudflare', 'akamai', 'fastly', 'digitalocean', 'vultr',
-            'linode', 'hetzner', 'ovh', 'datacenter', 'hosting'
-        ]
-        
-        return not any(keyword in text for keyword in black_keywords)
+# 使用简化版本，避免复杂的导入依赖
+import requests
+def fetch_ip_info_ipinfo(ip):
+    """获取IP信息从IPinfo.io"""
+    token = os.environ.get('IPINFO_TOKEN')
+    headers = {'Authorization': f'Bearer {token}'} if token else {}
+
+    try:
+        response = requests.get(f'https://ipinfo.io/{ip}/json', headers=headers, timeout=10)
+        if response.status_code == 200:
+            data = response.json()
+            return {
+                'status': 'success',
+                'query': data.get('ip', ip),
+                'country': data.get('country', ''),
+                'city': data.get('city', ''),
+                'org': data.get('org', ''),
+                'isp': data.get('org', ''),  # IPinfo.io使用org字段
+                'privacy': data.get('privacy', {}),
+                'hosting': data.get('privacy', {}).get('hosting', False),
+                'vpn': data.get('privacy', {}).get('vpn', False),
+                'proxy': data.get('privacy', {}).get('proxy', False),
+                'tor': data.get('privacy', {}).get('tor', False)
+            }
+        else:
+            print(f"IPinfo API error: {response.status_code}")
+    except Exception as e:
+        print(f"Error fetching IP info: {e}")
+
+    return None
+
+def is_pure_ip(ip_info):
+    """判定IP是否纯净"""
+    if not ip_info or ip_info.get('status') != 'success':
+        return False
+
+    # 优先检查privacy信息（IPinfo.io付费功能）
+    privacy = ip_info.get('privacy', {})
+    if any(privacy.get(key, False) for key in ['hosting', 'vpn', 'proxy', 'tor']):
+        return False
+
+    # 关键词检测（备用方案）
+    text = ' '.join([
+        ip_info.get('org', ''),
+        ip_info.get('isp', ''),
+        ip_info.get('as', '')
+    ]).lower()
+
+    black_keywords = [
+        'amazon', 'aws', 'google', 'gcp', 'microsoft', 'azure',
+        'cloudflare', 'akamai', 'fastly', 'digitalocean', 'vultr',
+        'linode', 'hetzner', 'ovh', 'datacenter', 'hosting',
+        'server', 'cloud', 'vps', 'dedicated'
+    ]
+
+    return not any(keyword in text for keyword in black_keywords)
 
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
