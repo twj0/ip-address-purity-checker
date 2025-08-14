@@ -39,7 +39,7 @@ Want to try it immediately? Follow these steps for a quick start:
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/your-username/ip-address-purity-checker.git
+git clone https://github.com/twj0/ip-address-purity-checker.git
 cd ip-address-purity-checker
 
 # 2. Install dependencies
@@ -80,7 +80,7 @@ python scripts/dedup_purity_to_yaml.py
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/ip-address-purity-checker.git
+git clone https://github.com/twj0/ip-address-purity-checker.git
 cd ip-address-purity-checker
 
 # Install dependencies
@@ -293,7 +293,7 @@ vercel --prod
 
 Or click for one-click deployment:
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/your-username/ip-address-purity-checker)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/twj0/ip-address-purity-checker)
 
 ## 📁 Project Structure
 

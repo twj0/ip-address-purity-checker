@@ -39,7 +39,7 @@
 
 ```bash
 # 1. 克隆项目
-git clone https://github.com/your-username/ip-address-purity-checker.git
+git clone https://github.com/twj0/ip-address-purity-checker.git
 cd ip-address-purity-checker
 
 # 2. 安装依赖
@@ -80,7 +80,7 @@ python scripts/dedup_purity_to_yaml.py
 
 ```bash
 # 克隆项目
-git clone https://github.com/your-username/ip-address-purity-checker.git
+git clone https://github.com/twj0/ip-address-purity-checker.git
 cd ip-address-purity-checker
 
 # 安装依赖
@@ -293,7 +293,7 @@ vercel --prod
 
 或者点击一键部署：
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/your-username/ip-address-purity-checker)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/twj0/ip-address-purity-checker)
 
 ## 📁 项目结构
 
