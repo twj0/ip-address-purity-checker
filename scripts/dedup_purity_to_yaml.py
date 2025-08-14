@@ -22,6 +22,10 @@ from src.ip_checker.clash import build_config_from_proxies, save_config
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
+# 降低第三方库的日志级别
+logging.getLogger("requests").setLevel(logging.WARNING)
+logging.getLogger("urllib3").setLevel(logging.WARNING)
+
 
 def _is_ipv4_literal(value: str) -> bool:
     return bool(re.fullmatch(r"(\d{1,3}\.){3}\d{1,3}", value)) and all(0 <= int(p) <= 255 for p in value.split('.'))
@@ -39,23 +43,39 @@ def _resolve_proxy_ipv4(proxy: Dict) -> Optional[str]:
     return sorted(ips)[0] if ips else None
 
 
-def _fetch_ipinfo_with_retry(ip: str, max_retries: int = 3, base_delay: float = 0.5) -> Optional[Dict]:
+def _fetch_ipinfo_with_retry(ip: str, max_retries: int = 2, base_delay: float = 1.0) -> Optional[Dict]:
     """
-    获取IP信息，使用IPinfo.io优先，支持智能重试
+    获取IP信息，使用智能重试策略
     """
     attempt = 0
-    while attempt <= max_retries:
-        info = fetch_ip_info(ip)  # 现在会优先使用IPinfo.io
-        if info and info.get('status') == 'success':
-            return info
+    last_error = None
 
-        # 对于IPinfo.io，使用更短的重试间隔
-        sleep_seconds = base_delay * (1.5 ** attempt)  # 更温和的指数退避
-        logger.warning(f"Retrying IP info for {ip} in {sleep_seconds:.1f}s...")
-        time.sleep(sleep_seconds)
+    while attempt <= max_retries:
+        try:
+            info = fetch_ip_info(ip)
+            if info and info.get('status') == 'success':
+                return info
+            elif info and info.get('status') == 'fail':
+                # API明确返回失败，不需要重试
+                logger.debug(f"API returned fail status for {ip}, skipping retries")
+                return info
+        except Exception as e:
+            last_error = e
+            logger.debug(f"Exception fetching info for {ip}: {e}")
+
+        if attempt < max_retries:
+            # 智能退避策略
+            if "429" in str(last_error) or "rate limit" in str(last_error).lower():
+                sleep_seconds = base_delay * (3 ** attempt) + 2
+            else:
+                sleep_seconds = base_delay * (2 ** attempt)
+
+            logger.debug(f"Retrying IP info for {ip} in {sleep_seconds:.1f}s (attempt {attempt + 1}/{max_retries + 1})")
+            time.sleep(sleep_seconds)
+
         attempt += 1
 
-    logger.error(f"Failed to fetch info for {ip} after {max_retries + 1} attempts.")
+    logger.warning(f"Failed to fetch info for {ip} after {max_retries + 1} attempts. Last error: {last_error}")
     return None
 
 
@@ -110,10 +130,15 @@ def run_dedup_purity_to_yaml(sub_file: str = "汇聚订阅.txt", output_yaml: st
         logger.warning("No proxies remained after IP deduplication.")
         return (total_before, 0, output_yaml)
 
-    # 3) 并发获取 IP 信息并判定纯净 (使用IPinfo.io更高的并发数)
+    # 3) 并发获取 IP 信息并判定纯净 (降低并发数避免速率限制)
     unique_ips = [p["ip"] for p in deduped_proxies]
     ip_info_map: Dict[str, Dict] = {}
-    with ThreadPoolExecutor(max_workers=50) as ex:
+
+    # 根据IP数量动态调整并发数
+    max_workers = min(10, len(unique_ips))  # 最多10个并发
+    logger.info(f"Using {max_workers} workers for {len(unique_ips)} unique IPs")
+
+    with ThreadPoolExecutor(max_workers=max_workers) as ex:
         future_to_ip = {ex.submit(_fetch_ipinfo_with_retry, ip): ip for ip in unique_ips}
         for future in as_completed(future_to_ip):
             ip = future_to_ip[future]

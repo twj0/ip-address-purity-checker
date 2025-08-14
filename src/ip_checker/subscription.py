@@ -14,9 +14,9 @@ from urllib.parse import urlparse, parse_qs
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
-# 并发与超时相关的默认设置
-MAX_FETCH_WORKERS: int = 10
-MAX_RESOLVE_WORKERS: int = 20
+# 并发与超时相关的默认设置（降低并发数以提高稳定性）
+MAX_FETCH_WORKERS: int = 5   # 降低订阅获取并发数
+MAX_RESOLVE_WORKERS: int = 10  # 降低DNS解析并发数
 REQUEST_TIMEOUT_SECONDS: int = 15
 RESOLVE_TIMEOUT_SECONDS: int = 6
 DOH_TIMEOUT_SECONDS: int = 6

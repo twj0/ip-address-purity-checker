@@ -14,30 +14,50 @@ logger = logging.getLogger(__name__)
 
 class IPInfoProvider:
     """IPinfo.io API服务提供者"""
-    
+
     def __init__(self, api_token: Optional[str] = None):
         """
         初始化IPinfo提供者
-        
+
         Args:
             api_token: API token，如果为None则从环境变量或文件读取
         """
         self.api_token = api_token or self._get_api_token()
         self.base_url = "https://ipinfo.io"
         self.session = requests.Session()
+
+        # 配置连接池
+        adapter = requests.adapters.HTTPAdapter(
+            pool_connections=20,
+            pool_maxsize=20,
+            max_retries=0  # 禁用自动重试，我们自己控制
+        )
+        self.session.mount('https://', adapter)
+        self.session.mount('http://', adapter)
+
         self.session.headers.update({
             'User-Agent': 'IP-Checker/1.0',
             'Accept': 'application/json'
         })
-        
+
         if self.api_token:
             self.session.headers['Authorization'] = f'Bearer {self.api_token}'
-        
-        # 速率限制控制
+
+        # 改进的速率限制控制
         self.last_request_time = 0
-        self.min_interval = 0.1  # IPinfo.io限制更宽松，100ms间隔
-        
-        logger.info(f"IPinfo provider initialized with token: {self.api_token[:8] if self.api_token else 'None'}...")
+        # 根据是否有token调整间隔
+        if self.api_token:
+            self.min_interval = 0.06  # 有token时每分钟1000次，约60ms间隔
+            self.requests_per_minute = 1000
+        else:
+            self.min_interval = 1.5   # 无token时每分钟45次，约1.3s间隔
+            self.requests_per_minute = 45
+
+        # 请求计数器（用于更精确的速率控制）
+        self.request_times = []
+
+        logger.info(f"IPinfo provider initialized with token: {self.api_token[:8] if self.api_token else 'None'}... "
+                   f"Rate limit: {self.requests_per_minute}/min")
     
     def _get_api_token(self) -> Optional[str]:
         """获取API token，优先级：环境变量 > 文件"""
@@ -62,15 +82,32 @@ class IPInfoProvider:
         return None
     
     def _rate_limit(self):
-        """实施速率限制"""
+        """实施改进的速率限制"""
         current_time = time.time()
+
+        # 清理超过1分钟的请求记录
+        self.request_times = [t for t in self.request_times if current_time - t < 60]
+
+        # 如果1分钟内的请求数已达到限制，等待
+        if len(self.request_times) >= self.requests_per_minute:
+            sleep_time = 60 - (current_time - self.request_times[0]) + 0.1
+            if sleep_time > 0:
+                logger.debug(f"Rate limit reached, sleeping for {sleep_time:.1f}s")
+                time.sleep(sleep_time)
+                current_time = time.time()
+                # 重新清理请求记录
+                self.request_times = [t for t in self.request_times if current_time - t < 60]
+
+        # 基本间隔控制
         time_since_last = current_time - self.last_request_time
-        
         if time_since_last < self.min_interval:
             sleep_time = self.min_interval - time_since_last
             time.sleep(sleep_time)
-        
-        self.last_request_time = time.time()
+            current_time = time.time()
+
+        # 记录请求时间
+        self.request_times.append(current_time)
+        self.last_request_time = current_time
     
     def fetch_ip_info(self, ip: str, timeout: int = 10) -> Optional[Dict]:
         """

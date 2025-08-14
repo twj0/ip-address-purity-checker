@@ -4,3 +4,9 @@
 /files/
 __pycache__
 GEMINI.md
+docs/DEPLOYMENT_CHECKLIST.md
+.gitignore
+docs/IPINFO_MIGRATION.md
+docs/DEPLOYMENT.md
+docs/MANUAL_DEPLOY_GUIDE.md
+docs/PUSH_INSTRUCTIONS.md

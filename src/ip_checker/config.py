@@ -20,15 +20,21 @@ def _load_config() -> Dict[str, Any]:
         "ip_info": {
             "primary_provider": "ipinfo",
             "fallback_provider": "ip-api",
+            "max_concurrent_requests": 10,  # 全局并发限制
             "ipinfo": {
                 "base_url": "https://ipinfo.io",
-                "rate_limit_per_minute": 1000,
-                "timeout": 10
+                "rate_limit_per_minute": 1000,  # 有token时
+                "rate_limit_per_minute_free": 45,  # 无token时
+                "timeout": 10,
+                "max_retries": 2,
+                "retry_delay": 1.0
             },
             "ip_api": {
                 "base_url": "http://ip-api.com",
                 "rate_limit_per_minute": 45,
-                "timeout": 8
+                "timeout": 8,
+                "max_retries": 2,
+                "retry_delay": 1.5
             }
         }
     }
@@ -60,3 +66,15 @@ def get_provider_config(provider_name: str) -> Dict[str, Any]:
     """Get configuration for specific provider"""
     ip_info_config = get_ip_info_config()
     return ip_info_config.get(provider_name.replace("-", "_"), {})
+
+def get_max_concurrent_requests() -> int:
+    """Get maximum concurrent requests setting"""
+    return get_ip_info_config().get("max_concurrent_requests", 10)
+
+def get_retry_config(provider_name: str) -> Dict[str, Any]:
+    """Get retry configuration for specific provider"""
+    provider_config = get_provider_config(provider_name)
+    return {
+        "max_retries": provider_config.get("max_retries", 2),
+        "retry_delay": provider_config.get("retry_delay", 1.0)
+    }

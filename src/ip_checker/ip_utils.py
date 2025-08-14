@@ -19,11 +19,11 @@ def fetch_ip_info(ip: str, proxy: Optional[Dict] = None, timeout: int = 8) -> Op
     """
     # 首先尝试IPinfo.io
     result = _fetch_ip_info_ipinfo(ip, timeout)
-    if result:
+    if result and result.get('status') == 'success':
         return result
 
     # 回退到ip-api.com
-    logger.info(f'IPinfo failed for {ip}, falling back to ip-api.com')
+    logger.debug(f'IPinfo failed for {ip}, falling back to ip-api.com')
     return _fetch_ip_info_legacy(ip, proxy, timeout)
 
 def _fetch_ip_info_ipinfo(ip: str, timeout: int = 8) -> Optional[Dict]:
@@ -41,13 +41,19 @@ def _fetch_ip_info_ipinfo(ip: str, timeout: int = 8) -> Optional[Dict]:
 def _fetch_ip_info_legacy(ip: str, proxy: Optional[Dict] = None, timeout: int = 8) -> Optional[Dict]:
     """使用ip-api.com获取IP信息（原始实现）"""
     try:
-        logger.info(f'Fetching IP details from ip-api.com for: {ip}')
+        logger.debug(f'Fetching IP details from ip-api.com for: {ip}')
         response = requests.get(f"http://ip-api.com/json/{ip}", proxies=proxy, timeout=timeout)
         response.raise_for_status()
-        return response.json()
+        data = response.json()
+
+        # 确保返回的数据包含status字段
+        if 'status' not in data:
+            data['status'] = 'success' if data.get('query') else 'fail'
+
+        return data
     except requests.exceptions.RequestException as e:
-        logger.error(f'Error fetching IP details from ip-api.com for {ip}: {e}')
-        return None
+        logger.debug(f'Error fetching IP details from ip-api.com for {ip}: {e}')
+        return {'status': 'fail', 'query': ip, 'message': str(e)}
 
 # --- IP Purity Check ---
 
