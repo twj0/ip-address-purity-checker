@@ -1177,12 +1177,12 @@ function getConsolidatedHomePage() {
 
     <script>
         // 全局变量
-        let subscriptions = [];
-        let apiKeys = {
+        var subscriptions = [];
+        var apiKeys = {
             proxycheck: localStorage.getItem('proxycheck_key') || '',
             ipinfo: localStorage.getItem('ipinfo_token') || ''
         };
-        let batchResults = [];
+        var batchResults = [];
 
         // 页面加载时初始化
         document.addEventListener('DOMContentLoaded', function() {
@@ -1211,8 +1211,8 @@ function getConsolidatedHomePage() {
         // 显示提示信息
         function showAlert(message, type) {
             type = type || 'success';
-            const alertContainer = document.getElementById('alertContainer');
-            const alertDiv = document.createElement('div');
+            var alertContainer = document.getElementById('alertContainer');
+            var alertDiv = document.createElement('div');
             alertDiv.className = 'alert alert-' + type;
             alertDiv.textContent = message;
             alertDiv.style.display = 'block';
@@ -1229,15 +1229,15 @@ function getConsolidatedHomePage() {
         // 显示结果
         function showResult(elementId, content, isError) {
             isError = isError || false;
-            const resultDiv = document.getElementById(elementId);
+            var resultDiv = document.getElementById(elementId);
             resultDiv.style.display = 'block';
             resultDiv.textContent = typeof content === 'string' ? content : JSON.stringify(content, null, 2);
             resultDiv.style.color = isError ? '#dc3545' : '#333';
         }
 
         // 单IP检测
-        async function checkSingleIP() {
-            const ip = document.getElementById('singleIp').value.trim();
+        function checkSingleIP() {
+            var ip = document.getElementById('singleIp').value.trim();
             if (!ip) {
                 showAlert('请输入IP地址', 'error');
                 return;
@@ -1245,52 +1245,7 @@ function getConsolidatedHomePage() {
 
             showResult('singleResult', '正在检测IP地址...');
 
-            try {
-                const headers = {};
-                if (apiKeys.proxycheck) {
-                    headers['X-ProxyCheck-Key'] = apiKeys.proxycheck;
-                }
-                if (apiKeys.ipinfo) {
-                    headers['X-IPInfo-Token'] = apiKeys.ipinfo;
-                }
-
-                const response = await fetch('/api/check-ip?ip=' + encodeURIComponent(ip), {
-                    headers: headers
-                });
-
-                const data = await response.json();
-
-                if (response.ok) {
-                    showResult('singleResult', data);
-                    showAlert('IP检测完成', 'success');
-                } else {
-                    showResult('singleResult', data, true);
-                    showAlert('检测失败: ' + (data.error || '未知错误'), 'error');
-                }
-            } catch (error) {
-                showResult('singleResult', '错误: ' + error.message, true);
-                showAlert('检测失败: ' + error.message, 'error');
-            }
-        }
-
-        // 批量IP检测
-        async function checkBatchIPs() {
-            const ipsText = document.getElementById('batchIps').value.trim();
-            if (!ipsText) {
-                showAlert('请输入IP地址列表', 'error');
-                return;
-            }
-
-            const ips = ipsText.split('\n').map(function(ip) { return ip.trim(); }).filter(function(ip) { return ip; });
-            if (ips.length === 0) {
-                showAlert('没有有效的IP地址', 'error');
-                return;
-            }
-
-            showResult('batchResult', '正在检测 ' + ips.length + ' 个IP地址...');
-
-            const results = [];
-            const headers = {};
+            var headers = {};
             if (apiKeys.proxycheck) {
                 headers['X-ProxyCheck-Key'] = apiKeys.proxycheck;
             }
@@ -1298,33 +1253,83 @@ function getConsolidatedHomePage() {
                 headers['X-IPInfo-Token'] = apiKeys.ipinfo;
             }
 
-            for (let i = 0; i < ips.length; i++) {
-                const ip = ips[i];
-                showResult('batchResult', '正在检测 ' + (i + 1) + '/' + ips.length + ': ' + ip);
-
-                try {
-                    const response = await fetch('/api/check-ip?ip=' + encodeURIComponent(ip), {
-                        headers: headers
-                    });
-                    const data = await response.json();
-                    results.push(data);
-
-                    // 添加延迟避免API限制
-                    if (i < ips.length - 1) {
-                        await new Promise(function(resolve) { setTimeout(resolve, 1000); });
+            fetch('/api/check-ip?ip=' + encodeURIComponent(ip), {
+                headers: headers
+            }).then(function(response) {
+                return response.json().then(function(data) {
+                    if (response.ok) {
+                        showResult('singleResult', data);
+                        showAlert('IP检测完成', 'success');
+                    } else {
+                        showResult('singleResult', data, true);
+                        showAlert('检测失败: ' + (data.error || '未知错误'), 'error');
                     }
-                } catch (error) {
+                });
+            }).catch(function(error) {
+                showResult('singleResult', '错误: ' + error.message, true);
+                showAlert('检测失败: ' + error.message, 'error');
+            });
+        }
+
+        // 批量IP检测
+        function checkBatchIPs() {
+            var ipsText = document.getElementById('batchIps').value.trim();
+            if (!ipsText) {
+                showAlert('请输入IP地址列表', 'error');
+                return;
+            }
+
+            var ips = ipsText.split('\n').map(function(ip) { return ip.trim(); }).filter(function(ip) { return ip; });
+            if (ips.length === 0) {
+                showAlert('没有有效的IP地址', 'error');
+                return;
+            }
+
+            showResult('batchResult', '正在检测 ' + ips.length + ' 个IP地址...');
+
+            var results = [];
+            var headers = {};
+            if (apiKeys.proxycheck) {
+                headers['X-ProxyCheck-Key'] = apiKeys.proxycheck;
+            }
+            if (apiKeys.ipinfo) {
+                headers['X-IPInfo-Token'] = apiKeys.ipinfo;
+            }
+
+            // 简化批量检测逻辑
+            var currentIndex = 0;
+
+            function checkNextIP() {
+                if (currentIndex >= ips.length) {
+                    batchResults = results;
+                    showResult('batchResult', results);
+                    showAlert('批量检测完成，共检测 ' + results.length + ' 个IP', 'success');
+                    return;
+                }
+
+                var ip = ips[currentIndex];
+                showResult('batchResult', '正在检测 ' + (currentIndex + 1) + '/' + ips.length + ': ' + ip);
+
+                fetch('/api/check-ip?ip=' + encodeURIComponent(ip), {
+                    headers: headers
+                }).then(function(response) {
+                    return response.json();
+                }).then(function(data) {
+                    results.push(data);
+                    currentIndex++;
+                    setTimeout(checkNextIP, 1000); // 1秒延迟
+                }).catch(function(error) {
                     results.push({
                         ip: ip,
                         error: error.message,
                         isPure: false
                     });
-                }
+                    currentIndex++;
+                    setTimeout(checkNextIP, 1000); // 1秒延迟
+                });
             }
 
-            batchResults = results;
-            showResult('batchResult', results);
-            showAlert('批量检测完成，共检测 ' + results.length + ' 个IP', 'success');
+            checkNextIP();
         }
 
         // 导出CSV结果
@@ -1335,8 +1340,8 @@ function getConsolidatedHomePage() {
             }
 
             try {
-                const csvHeader = 'IP地址,纯净度,风险评分,代理类型,国家,城市,ISP,检测时间\n';
-                const csvContent = batchResults.map(function(result) {
+                var csvHeader = 'IP地址,纯净度,风险评分,代理类型,国家,城市,ISP,检测时间\n';
+                var csvContent = batchResults.map(function(result) {
                     return [
                         result.ip || '',
                         result.isPure ? '纯净' : '不纯净',
@@ -1350,8 +1355,8 @@ function getConsolidatedHomePage() {
                 }).join('\n');
 
                 // 下载文件
-                const blob = new Blob([csvHeader + csvContent], { type: 'text/csv;charset=utf-8;' });
-                const link = document.createElement('a');
+                var blob = new Blob([csvHeader + csvContent], { type: 'text/csv;charset=utf-8;' });
+                var link = document.createElement('a');
                 link.href = URL.createObjectURL(blob);
                 link.download = 'ip_purity_check_' + new Date().toISOString().split('T')[0] + '.csv';
                 link.click();
@@ -1364,15 +1369,15 @@ function getConsolidatedHomePage() {
 
         // 订阅管理
         function addSubscription() {
-            const name = document.getElementById('subscriptionName').value.trim();
-            const url = document.getElementById('subscriptionUrl').value.trim();
+            var name = document.getElementById('subscriptionName').value.trim();
+            var url = document.getElementById('subscriptionUrl').value.trim();
 
             if (!name || !url) {
                 showAlert('请填写订阅名称和链接', 'error');
                 return;
             }
 
-            const subscription = {
+            var subscription = {
                 id: Date.now().toString(),
                 name: name,
                 url: url,
@@ -1397,7 +1402,7 @@ function getConsolidatedHomePage() {
 
         // 从localStorage加载订阅
         function loadSubscriptions() {
-            const saved = localStorage.getItem('subscriptions');
+            var saved = localStorage.getItem('subscriptions');
             if (saved) {
                 try {
                     subscriptions = JSON.parse(saved);
@@ -1410,7 +1415,7 @@ function getConsolidatedHomePage() {
 
         // 渲染订阅列表
         function renderSubscriptions() {
-            const container = document.getElementById('subscriptionList');
+            var container = document.getElementById('subscriptionList');
 
             if (subscriptions.length === 0) {
                 container.innerHTML = '<p style="color: #666; text-align: center; padding: 20px;">暂无订阅，请添加您的第一个订阅链接</p>';
@@ -1434,25 +1439,23 @@ function getConsolidatedHomePage() {
         }
 
         // 测试单个订阅
-        async function testSubscription(id) {
-            const subscription = subscriptions.find(function(sub) { return sub.id === id; });
+        function testSubscription(id) {
+            var subscription = subscriptions.find(function(sub) { return sub.id === id; });
             if (!subscription) return;
 
             showAlert('正在测试订阅连接...', 'info');
 
-            try {
-                const response = await fetch('/api/check-subscription', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        url: subscription.url
-                    })
-                });
-
-                const result = await response.json();
-
+            fetch('/api/check-subscription', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    url: subscription.url
+                })
+            }).then(function(response) {
+                return response.json();
+            }).then(function(result) {
                 if (result.success) {
                     subscription.status = 'active';
                     subscription.lastChecked = new Date().toISOString();
@@ -1463,9 +1466,9 @@ function getConsolidatedHomePage() {
                     subscription.status = 'error';
                     showAlert('测试失败: ' + result.error, 'error');
                 }
-            } catch (error) {
+            }).catch(function(error) {
                 showAlert('测试失败: ' + error.message, 'error');
-            }
+            });
         }
 
         // 删除订阅
@@ -1479,7 +1482,7 @@ function getConsolidatedHomePage() {
         }
 
         // 检查所有订阅
-        async function checkAllSubscriptions() {
+        function checkAllSubscriptions() {
             if (subscriptions.length === 0) {
                 showAlert('没有订阅需要检查', 'warning');
                 return;
@@ -1487,23 +1490,32 @@ function getConsolidatedHomePage() {
 
             showResult('subscriptionResult', '正在检查所有订阅，请稍候...');
 
-            const results = [];
-            for (let i = 0; i < subscriptions.length; i++) {
-                const sub = subscriptions[i];
-                showResult('subscriptionResult', '正在检查 ' + (i + 1) + '/' + subscriptions.length + ': ' + sub.name);
+            var results = [];
+            var currentIndex = 0;
 
-                try {
-                    const response = await fetch('/api/check-subscription', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({
-                            url: sub.url
-                        })
-                    });
+            function checkNextSubscription() {
+                if (currentIndex >= subscriptions.length) {
+                    saveSubscriptions();
+                    renderSubscriptions();
+                    showResult('subscriptionResult', results);
+                    showAlert('所有订阅检查完成', 'success');
+                    return;
+                }
 
-                    const result = await response.json();
+                var sub = subscriptions[currentIndex];
+                showResult('subscriptionResult', '正在检查 ' + (currentIndex + 1) + '/' + subscriptions.length + ': ' + sub.name);
+
+                fetch('/api/check-subscription', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        url: sub.url
+                    })
+                }).then(function(response) {
+                    return response.json();
+                }).then(function(result) {
                     results.push({
                         name: sub.name,
                         success: result.success,
@@ -1513,24 +1525,20 @@ function getConsolidatedHomePage() {
 
                     sub.lastChecked = new Date().toISOString();
                     sub.status = result.success ? 'active' : 'error';
-
-                    // 添加延迟
-                    if (i < subscriptions.length - 1) {
-                        await new Promise(function(resolve) { setTimeout(resolve, 2000); });
-                    }
-                } catch (error) {
+                    currentIndex++;
+                    setTimeout(checkNextSubscription, 2000); // 2秒延迟
+                }).catch(function(error) {
                     results.push({
                         name: sub.name,
                         success: false,
                         error: error.message
                     });
-                }
+                    currentIndex++;
+                    setTimeout(checkNextSubscription, 2000); // 2秒延迟
+                });
             }
 
-            saveSubscriptions();
-            renderSubscriptions();
-            showResult('subscriptionResult', results);
-            showAlert('所有订阅检查完成', 'success');
+            checkNextSubscription();
         }
 
         // 清空订阅
@@ -1544,52 +1552,52 @@ function getConsolidatedHomePage() {
         }
 
         // 定时任务相关
-        async function checkStatus() {
+        function checkStatus() {
             showResult('scheduledResult', '正在查询状态...');
 
-            try {
-                const response = await fetch('/api/status');
-                const data = await response.json();
+            fetch('/api/status').then(function(response) {
+                return response.json();
+            }).then(function(data) {
                 showResult('scheduledResult', data);
                 updateStatsFromData(data);
                 showAlert('状态查询完成', 'success');
-            } catch (error) {
+            }).catch(function(error) {
                 showResult('scheduledResult', '错误: ' + error.message, true);
                 showAlert('状态查询失败: ' + error.message, 'error');
-            }
+            });
         }
 
-        async function manualCheck() {
+        function manualCheck() {
             showResult('scheduledResult', '正在执行手动检查，请稍候...');
 
-            try {
-                const response = await fetch('/api/manual-check', { method: 'POST' });
-                const data = await response.json();
+            fetch('/api/manual-check', { method: 'POST' }).then(function(response) {
+                return response.json();
+            }).then(function(data) {
                 showResult('scheduledResult', data);
                 updateStatsFromData(data);
                 showAlert('手动检查完成', 'success');
-            } catch (error) {
+            }).catch(function(error) {
                 showResult('scheduledResult', '错误: ' + error.message, true);
                 showAlert('手动检查失败: ' + error.message, 'error');
-            }
+            });
         }
 
-        async function downloadClashConfig() {
-            try {
-                const response = await fetch('/api/clash-config');
+        function downloadClashConfig() {
+            fetch('/api/clash-config').then(function(response) {
                 if (response.ok) {
-                    const blob = await response.blob();
-                    const link = document.createElement('a');
-                    link.href = URL.createObjectURL(blob);
-                    link.download = 'clash-config-' + new Date().toISOString().split('T')[0] + '.yaml';
-                    link.click();
-                    showAlert('Clash配置下载成功', 'success');
+                    return response.blob();
                 } else {
-                    showAlert('Clash配置下载失败', 'error');
+                    throw new Error('下载失败');
                 }
-            } catch (error) {
+            }).then(function(blob) {
+                var link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = 'clash-config-' + new Date().toISOString().split('T')[0] + '.yaml';
+                link.click();
+                showAlert('Clash配置下载成功', 'success');
+            }).catch(function(error) {
                 showAlert('下载失败: ' + error.message, 'error');
-            }
+            });
         }
 
         // 更新统计数据
@@ -1611,8 +1619,8 @@ function getConsolidatedHomePage() {
 
         // 设置相关
         function loadSettings() {
-            const proxycheckKey = localStorage.getItem('proxycheck_key');
-            const ipinfoToken = localStorage.getItem('ipinfo_token');
+            var proxycheckKey = localStorage.getItem('proxycheck_key');
+            var ipinfoToken = localStorage.getItem('ipinfo_token');
 
             if (proxycheckKey) {
                 document.getElementById('proxycheckKey').value = proxycheckKey;
@@ -1626,8 +1634,8 @@ function getConsolidatedHomePage() {
         }
 
         function saveSettings() {
-            const proxycheckKey = document.getElementById('proxycheckKey').value.trim();
-            const ipinfoToken = document.getElementById('ipinfoToken').value.trim();
+            var proxycheckKey = document.getElementById('proxycheckKey').value.trim();
+            var ipinfoToken = document.getElementById('ipinfoToken').value.trim();
 
             if (proxycheckKey) {
                 localStorage.setItem('proxycheck_key', proxycheckKey);
@@ -1648,71 +1656,80 @@ function getConsolidatedHomePage() {
             showAlert('设置保存成功', 'success');
         }
 
-        async function testAPIKeys() {
+        function testAPIKeys() {
             showResult('settingsResult', '正在测试API密钥...');
 
-            const results = [];
+            var results = [];
 
             // 测试ProxyCheck.io
             if (apiKeys.proxycheck) {
-                try {
-                    const response = await fetch('/api/check-ip?ip=8.8.8.8', {
-                        headers: {
-                            'X-ProxyCheck-Key': apiKeys.proxycheck
-                        }
+                fetch('/api/check-ip?ip=8.8.8.8', {
+                    headers: {
+                        'X-ProxyCheck-Key': apiKeys.proxycheck
+                    }
+                }).then(function(response) {
+                    return response.json().then(function(data) {
+                        results.push({
+                            service: 'ProxyCheck.io',
+                            status: response.ok ? '✅ 正常' : '❌ 失败',
+                            message: response.ok ? '密钥有效' : data.error || '未知错误'
+                        });
+                        testIPInfo();
                     });
-                    const data = await response.json();
-                    results.push({
-                        service: 'ProxyCheck.io',
-                        status: response.ok ? '✅ 正常' : '❌ 失败',
-                        message: response.ok ? '密钥有效' : data.error || '未知错误'
-                    });
-                } catch (error) {
+                }).catch(function(error) {
                     results.push({
                         service: 'ProxyCheck.io',
                         status: '❌ 错误',
                         message: error.message
                     });
-                }
+                    testIPInfo();
+                });
             } else {
                 results.push({
                     service: 'ProxyCheck.io',
                     status: '⚠️ 未配置',
                     message: '请输入API密钥'
                 });
+                testIPInfo();
             }
 
-            // 测试IPinfo.io
-            if (apiKeys.ipinfo) {
-                try {
-                    const response = await fetch('/api/check-ip?ip=8.8.8.8', {
+            function testIPInfo() {
+                if (apiKeys.ipinfo) {
+                    fetch('/api/check-ip?ip=8.8.8.8', {
                         headers: {
                             'X-IPInfo-Token': apiKeys.ipinfo
                         }
+                    }).then(function(response) {
+                        return response.json().then(function(data) {
+                            results.push({
+                                service: 'IPinfo.io',
+                                status: response.ok ? '✅ 正常' : '❌ 失败',
+                                message: response.ok ? 'Token有效' : data.error || '未知错误'
+                            });
+                            showTestResults();
+                        });
+                    }).catch(function(error) {
+                        results.push({
+                            service: 'IPinfo.io',
+                            status: '❌ 错误',
+                            message: error.message
+                        });
+                        showTestResults();
                     });
-                    const data = await response.json();
+                } else {
                     results.push({
                         service: 'IPinfo.io',
-                        status: response.ok ? '✅ 正常' : '❌ 失败',
-                        message: response.ok ? 'Token有效' : data.error || '未知错误'
+                        status: '⚠️ 未配置',
+                        message: '请输入Token'
                     });
-                } catch (error) {
-                    results.push({
-                        service: 'IPinfo.io',
-                        status: '❌ 错误',
-                        message: error.message
-                    });
+                    showTestResults();
                 }
-            } else {
-                results.push({
-                    service: 'IPinfo.io',
-                    status: '⚠️ 未配置',
-                    message: '请输入Token'
-                });
             }
 
-            showResult('settingsResult', results);
-            showAlert('API密钥测试完成', 'success');
+            function showTestResults() {
+                showResult('settingsResult', results);
+                showAlert('API密钥测试完成', 'success');
+            }
         }
 
         function clearSettings() {

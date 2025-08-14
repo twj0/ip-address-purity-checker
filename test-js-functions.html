@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JavaScript功能测试页面</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .btn:hover {
+            background: #0056b3;
+        }
+        .result {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        .tabs {
+            display: flex;
+            border-bottom: 2px solid #e1e5e9;
+            margin-bottom: 20px;
+        }
+        .tab {
+            padding: 12px 24px;
+            cursor: pointer;
+            border: none;
+            background: none;
+            font-size: 14px;
+            font-weight: 600;
+            color: #666;
+            border-bottom: 2px solid transparent;
+        }
+        .tab.active {
+            color: #007bff;
+            border-bottom-color: #007bff;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 JavaScript功能测试页面</h1>
+    <p>此页面用于测试IP纯净度检查工具的JavaScript功能是否正常工作。</p>
+
+    <!-- 标签页导航测试 -->
+    <div class="test-section">
+        <h2>1. 标签页导航测试</h2>
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('tab1')">标签页1</button>
+            <button class="tab" onclick="switchTab('tab2')">标签页2</button>
+            <button class="tab" onclick="switchTab('tab3')">标签页3</button>
+        </div>
+
+        <div id="tab1" class="tab-content active">
+            <h3>标签页1内容</h3>
+            <p>这是第一个标签页的内容。如果您能看到这个内容，说明标签页切换功能正常。</p>
+        </div>
+
+        <div id="tab2" class="tab-content">
+            <h3>标签页2内容</h3>
+            <p>这是第二个标签页的内容。点击上方的"标签页2"按钮应该能显示这个内容。</p>
+        </div>
+
+        <div id="tab3" class="tab-content">
+            <h3>标签页3内容</h3>
+            <p>这是第三个标签页的内容。点击上方的"标签页3"按钮应该能显示这个内容。</p>
+        </div>
+    </div>
+
+    <!-- 基础函数测试 -->
+    <div class="test-section">
+        <h2>2. 基础函数测试</h2>
+        <button class="btn" onclick="testShowAlert()">测试提示信息</button>
+        <button class="btn" onclick="testShowResult()">测试结果显示</button>
+        <button class="btn" onclick="testLocalStorage()">测试本地存储</button>
+        
+        <div id="alertContainer"></div>
+        <div id="testResult" class="result" style="display: none;"></div>
+    </div>
+
+    <!-- 表单处理测试 -->
+    <div class="test-section">
+        <h2>3. 表单处理测试</h2>
+        <input type="text" id="testInput" placeholder="输入一些文本..." style="width: 300px; padding: 8px;">
+        <button class="btn" onclick="testFormProcessing()">处理表单</button>
+        
+        <div id="formResult" class="result" style="display: none;"></div>
+    </div>
+
+    <!-- 网络请求模拟测试 -->
+    <div class="test-section">
+        <h2>4. 网络请求模拟测试</h2>
+        <button class="btn" onclick="testNetworkRequest()">模拟网络请求</button>
+        
+        <div id="networkResult" class="result" style="display: none;"></div>
+    </div>
+
+    <script>
+        // 全局变量
+        var testData = {
+            counter: 0,
+            results: []
+        };
+
+        // 标签页切换函数
+        function switchTab(tabName) {
+            // 隐藏所有标签页内容
+            document.querySelectorAll('.tab-content').forEach(function(content) {
+                content.classList.remove('active');
+            });
+
+            // 移除所有标签页的active类
+            document.querySelectorAll('.tab').forEach(function(tab) {
+                tab.classList.remove('active');
+            });
+
+            // 显示选中的标签页
+            document.getElementById(tabName).classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        // 显示提示信息
+        function showAlert(message, type) {
+            type = type || 'success';
+            var alertContainer = document.getElementById('alertContainer');
+            var alertDiv = document.createElement('div');
+            alertDiv.style.cssText = 'padding: 10px; margin: 10px 0; border-radius: 4px; ' +
+                (type === 'success' ? 'background: #d4edda; color: #155724; border: 1px solid #c3e6cb;' :
+                 type === 'error' ? 'background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb;' :
+                 'background: #fff3cd; color: #856404; border: 1px solid #ffeaa7;');
+            alertDiv.textContent = message;
+
+            alertContainer.innerHTML = '';
+            alertContainer.appendChild(alertDiv);
+
+            // 3秒后自动隐藏
+            setTimeout(function() {
+                alertDiv.style.display = 'none';
+            }, 3000);
+        }
+
+        // 显示结果
+        function showResult(elementId, content, isError) {
+            isError = isError || false;
+            var resultDiv = document.getElementById(elementId);
+            resultDiv.style.display = 'block';
+            resultDiv.textContent = typeof content === 'string' ? content : JSON.stringify(content, null, 2);
+            resultDiv.style.color = isError ? '#dc3545' : '#333';
+        }
+
+        // 测试函数
+        function testShowAlert() {
+            testData.counter++;
+            showAlert('这是第 ' + testData.counter + ' 次测试提示信息！', 'success');
+        }
+
+        function testShowResult() {
+            var testResult = {
+                timestamp: new Date().toISOString(),
+                counter: testData.counter,
+                message: '测试结果显示功能正常',
+                data: [1, 2, 3, 4, 5]
+            };
+            showResult('testResult', testResult);
+        }
+
+        function testLocalStorage() {
+            try {
+                var testKey = 'js_test_' + Date.now();
+                var testValue = {
+                    message: '本地存储测试',
+                    timestamp: new Date().toISOString()
+                };
+                
+                localStorage.setItem(testKey, JSON.stringify(testValue));
+                var retrieved = JSON.parse(localStorage.getItem(testKey));
+                localStorage.removeItem(testKey);
+                
+                showAlert('本地存储功能正常！', 'success');
+                showResult('testResult', {
+                    action: '本地存储测试',
+                    saved: testValue,
+                    retrieved: retrieved,
+                    success: true
+                });
+            } catch (error) {
+                showAlert('本地存储测试失败: ' + error.message, 'error');
+                showResult('testResult', {
+                    action: '本地存储测试',
+                    error: error.message,
+                    success: false
+                }, true);
+            }
+        }
+
+        function testFormProcessing() {
+            var inputValue = document.getElementById('testInput').value.trim();
+            if (!inputValue) {
+                showAlert('请输入一些文本', 'error');
+                return;
+            }
+
+            var processedData = {
+                original: inputValue,
+                length: inputValue.length,
+                uppercase: inputValue.toUpperCase(),
+                lowercase: inputValue.toLowerCase(),
+                reversed: inputValue.split('').reverse().join(''),
+                timestamp: new Date().toISOString()
+            };
+
+            showResult('formResult', processedData);
+            showAlert('表单处理完成！', 'success');
+        }
+
+        function testNetworkRequest() {
+            showResult('networkResult', '正在模拟网络请求...');
+            
+            // 模拟网络延迟
+            setTimeout(function() {
+                var mockResponse = {
+                    status: 'success',
+                    message: '模拟网络请求成功',
+                    data: {
+                        ip: '8.8.8.8',
+                        isPure: true,
+                        country: 'US',
+                        provider: 'Google'
+                    },
+                    timestamp: new Date().toISOString(),
+                    responseTime: '1.2s'
+                };
+                
+                showResult('networkResult', mockResponse);
+                showAlert('网络请求模拟完成！', 'success');
+            }, 1200);
+        }
+
+        // 页面加载完成后的初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            showAlert('页面加载完成，JavaScript功能正常！', 'success');
+            console.log('JavaScript测试页面初始化完成');
+        });
+    </script>
+</body>
+</html>
