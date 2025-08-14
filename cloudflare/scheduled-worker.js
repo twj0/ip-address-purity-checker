@@ -45,7 +45,28 @@ async function handleRequest(request, env, ctx) {
             case '/':
             case '/index.html':
                 return new Response(getConsolidatedHomePage(), {
-                    headers: { 'Content-Type': 'text/html; charset=utf-8' }
+                    headers: {
+                        'Content-Type': 'text/html; charset=utf-8',
+                        'Cache-Control': 'no-cache, no-store, must-revalidate',
+                        'Pragma': 'no-cache',
+                        'Expires': '0'
+                    }
+                });
+
+            case '/test':
+                return new Response(getTestPage(), {
+                    headers: {
+                        'Content-Type': 'text/html; charset=utf-8',
+                        'Cache-Control': 'no-cache, no-store, must-revalidate'
+                    }
+                });
+
+            case '/minimal':
+                return new Response(getMinimalTestPage(), {
+                    headers: {
+                        'Content-Type': 'text/html; charset=utf-8',
+                        'Cache-Control': 'no-cache, no-store, must-revalidate'
+                    }
                 });
                 
             case '/api/status':
@@ -785,6 +806,72 @@ async function handleClashConfig(env) {
     }
 }
 
+// 获取测试页面HTML
+function getTestPage() {
+    return `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JavaScript功能测试</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .btn { background: #007bff; color: white; border: none; padding: 10px 20px; margin: 5px; cursor: pointer; }
+        .result { background: #f8f9fa; padding: 10px; margin: 10px 0; border: 1px solid #ddd; }
+    </style>
+</head>
+<body>
+    <h1>JavaScript功能测试</h1>
+    <button class="btn" onclick="testFunction()">测试函数</button>
+    <div id="result" class="result">等待测试...</div>
+
+    <script>
+        function testFunction() {
+            document.getElementById('result').innerHTML = '✅ JavaScript函数正常工作！时间: ' + new Date().toLocaleString();
+            console.log('测试函数被调用');
+        }
+
+        // 页面加载完成后自动测试
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('页面加载完成');
+            document.getElementById('result').innerHTML = '✅ 页面加载完成，JavaScript正常运行！';
+        });
+    </script>
+</body>
+</html>`;
+}
+
+// 获取最小化测试页面
+function getMinimalTestPage() {
+    return `<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>最小化JavaScript测试</title>
+</head>
+<body>
+    <h1>最小化JavaScript测试</h1>
+    <button onclick="testSwitchTab('tab1')">测试switchTab函数</button>
+    <button onclick="testCheckSingleIP()">测试checkSingleIP函数</button>
+    <div id="result">等待测试...</div>
+
+    <script>
+        function testSwitchTab(tabName) {
+            document.getElementById('result').innerHTML = '✅ switchTab函数正常工作！参数: ' + tabName;
+            console.log('switchTab called with:', tabName);
+        }
+
+        function testCheckSingleIP() {
+            document.getElementById('result').innerHTML = '✅ checkSingleIP函数正常工作！';
+            console.log('checkSingleIP called');
+        }
+
+        console.log('最小化测试页面JavaScript加载完成');
+    </script>
+</body>
+</html>`;
+}
+
 // 获取综合首页HTML
 function getConsolidatedHomePage() {
     return `<!DOCTYPE html>
@@ -1060,11 +1147,11 @@ function getConsolidatedHomePage() {
 
         <!-- 标签页导航 -->
         <div class="tabs">
-            <button class="tab active" onclick="switchTab('single-ip')">🔍 单IP检测</button>
-            <button class="tab" onclick="switchTab('batch-ip')">📋 批量检测</button>
-            <button class="tab" onclick="switchTab('subscription')">📡 订阅管理</button>
-            <button class="tab" onclick="switchTab('scheduled')">⏰ 定时任务</button>
-            <button class="tab" onclick="switchTab('settings')">⚙️ 设置</button>
+            <button class="tab active" onclick="switchTab('single-ip', this)">🔍 单IP检测</button>
+            <button class="tab" onclick="switchTab('batch-ip', this)">📋 批量检测</button>
+            <button class="tab" onclick="switchTab('subscription', this)">📡 订阅管理</button>
+            <button class="tab" onclick="switchTab('scheduled', this)">⏰ 定时任务</button>
+            <button class="tab" onclick="switchTab('settings', this)">⚙️ 设置</button>
         </div>
 
         <!-- 单IP检测标签页 -->
@@ -1192,7 +1279,7 @@ function getConsolidatedHomePage() {
         });
 
         // 标签页切换
-        function switchTab(tabName) {
+        function switchTab(tabName, clickedElement) {
             // 隐藏所有标签页内容
             document.querySelectorAll('.tab-content').forEach(function(content) {
                 content.classList.remove('active');
@@ -1205,7 +1292,22 @@ function getConsolidatedHomePage() {
 
             // 显示选中的标签页
             document.getElementById(tabName).classList.add('active');
-            event.target.classList.add('active');
+
+            // 如果有点击的元素，添加active类
+            if (clickedElement) {
+                clickedElement.classList.add('active');
+            } else {
+                // 备用方案：通过tabName找到对应的按钮
+                var tabButtons = document.querySelectorAll('.tab');
+                for (var i = 0; i < tabButtons.length; i++) {
+                    var button = tabButtons[i];
+                    var onclick = button.getAttribute('onclick');
+                    if (onclick && onclick.indexOf("'" + tabName + "'") !== -1) {
+                        button.classList.add('active');
+                        break;
+                    }
+                }
+            }
         }
 
         // 显示提示信息
