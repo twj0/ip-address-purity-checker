@@ -18,10 +18,74 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 # 使用简化版本，避免复杂的导入依赖
 import requests
 
+def fetch_ip_info_proxycheck(ip, api_key=None):
+    """使用ProxyCheck.io获取IP信息（专业代理检测）"""
+    # 构建请求URL
+    url = f'http://proxycheck.io/v2/{ip}'
+    params = {
+        'vpn': '1',      # 检测VPN
+        'risk': '1',     # 获取风险评分
+        'asn': '1',      # 获取ASN信息
+    }
+
+    if api_key:
+        params['key'] = api_key
+
+    try:
+        response = requests.get(url, params=params, timeout=10)
+        if response.status_code == 200:
+            data = response.json()
+
+            # 检查API响应状态
+            if data.get('status') != 'ok':
+                print(f"ProxyCheck API error: {data.get('message', 'Unknown error')}")
+                return None
+
+            # 提取IP数据
+            ip_data = data.get(ip)
+            if not ip_data:
+                return None
+
+            # 标准化数据格式
+            is_proxy = ip_data.get('proxy', 'no') == 'yes'
+            proxy_type = ip_data.get('type', '')
+            risk_score = int(ip_data.get('risk', 0))
+
+            # 判定纯净度
+            is_pure = not is_proxy and risk_score < 60
+
+            return {
+                'status': 'success',
+                'query': ip,
+                'ip': ip,
+                'country': ip_data.get('country', ''),
+                'city': ip_data.get('city', ''),
+                'org': ip_data.get('isp', ''),
+                'isp': ip_data.get('isp', ''),
+                'as': ip_data.get('asn', ''),
+                'is_proxy': is_proxy,
+                'proxy_type': proxy_type,
+                'risk_score': risk_score,
+                'is_pure': is_pure,
+                'privacy': {
+                    'hosting': proxy_type.lower() == 'hosting',
+                    'vpn': proxy_type.lower() == 'vpn',
+                    'proxy': is_proxy,
+                    'tor': proxy_type.lower() == 'tor'
+                },
+                'provider': 'proxycheck.io'
+            }
+        else:
+            print(f"ProxyCheck API HTTP error: {response.status_code}")
+    except Exception as e:
+        print(f"Error fetching IP info from ProxyCheck: {e}")
+
+    return None
+
 def fetch_ip_info_ipinfo(ip, token=None):
-    """获取IP信息从IPinfo.io"""
+    """获取IP信息从IPinfo.io（备用方案）"""
     headers = {'Authorization': f'Bearer {token}'} if token else {}
-    
+
     try:
         response = requests.get(f'https://ipinfo.io/{ip}/json', headers=headers, timeout=10)
         if response.status_code == 200:
@@ -37,39 +101,44 @@ def fetch_ip_info_ipinfo(ip, token=None):
                 'hosting': data.get('privacy', {}).get('hosting', False),
                 'vpn': data.get('privacy', {}).get('vpn', False),
                 'proxy': data.get('privacy', {}).get('proxy', False),
-                'tor': data.get('privacy', {}).get('tor', False)
+                'tor': data.get('privacy', {}).get('tor', False),
+                'provider': 'ipinfo.io'
             }
         else:
             print(f"IPinfo API error: {response.status_code}")
     except Exception as e:
         print(f"Error fetching IP info: {e}")
-    
+
     return None
 
 def is_pure_ip(ip_info):
     """判定IP是否纯净"""
     if not ip_info or ip_info.get('status') != 'success':
         return False
-    
-    # 优先检查privacy信息（IPinfo.io付费功能）
+
+    # 优先使用ProxyCheck.io的专业检测结果
+    if ip_info.get('provider') == 'proxycheck.io':
+        return ip_info.get('is_pure', False)
+
+    # 回退到IPinfo.io的privacy信息
     privacy = ip_info.get('privacy', {})
     if any(privacy.get(key, False) for key in ['hosting', 'vpn', 'proxy', 'tor']):
         return False
-    
+
     # 关键词检测（备用方案）
     text = ' '.join([
         ip_info.get('org', ''),
         ip_info.get('isp', ''),
         ip_info.get('as', '')
     ]).lower()
-    
+
     black_keywords = [
         'amazon', 'aws', 'google', 'gcp', 'microsoft', 'azure',
         'cloudflare', 'akamai', 'fastly', 'digitalocean', 'vultr',
         'linode', 'hetzner', 'ovh', 'datacenter', 'hosting',
         'server', 'cloud', 'vps', 'dedicated'
     ]
-    
+
     return not any(keyword in text for keyword in black_keywords)
 
 def extract_ips_from_subscription(url, timeout=15):
@@ -301,7 +370,8 @@ class handler(BaseHTTPRequestHandler):
                 return
             
             generate_clash = params.get('generate_clash', ['false'])[0].lower() == 'true'
-            token = self.headers.get('X-IPInfo-Token')
+            proxycheck_key = self.headers.get('X-ProxyCheck-Key')
+            ipinfo_token = self.headers.get('X-IPInfo-Token')
             
             # 处理订阅链接
             all_nodes = []
@@ -330,7 +400,7 @@ class handler(BaseHTTPRequestHandler):
             
             with ThreadPoolExecutor(max_workers=max_workers) as executor:
                 future_to_node = {
-                    executor.submit(self.check_node_purity, node, token): node 
+                    executor.submit(self.check_node_purity, node, proxycheck_key, ipinfo_token): node
                     for node in nodes_list
                 }
                 
@@ -378,10 +448,16 @@ class handler(BaseHTTPRequestHandler):
             print(f"Error in subscription check handler: {e}")
             self.send_error_response(500, str(e))
     
-    def check_node_purity(self, node, token):
+    def check_node_purity(self, node, proxycheck_key, ipinfo_token):
         """检查单个节点的纯净度"""
         ip = node['ip']
-        ip_info = fetch_ip_info_ipinfo(ip, token)
+
+        # 优先使用ProxyCheck.io
+        ip_info = fetch_ip_info_proxycheck(ip, proxycheck_key)
+
+        # 如果ProxyCheck失败，回退到IPinfo.io
+        if not ip_info:
+            ip_info = fetch_ip_info_ipinfo(ip, ipinfo_token)
         
         if ip_info:
             is_pure = is_pure_ip(ip_info)
@@ -424,5 +500,5 @@ class handler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header('Access-Control-Allow-Origin', '*')
         self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-        self.send_header('Access-Control-Allow-Headers', 'Content-Type, X-IPInfo-Token')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type, X-IPInfo-Token, X-ProxyCheck-Key')
         self.end_headers()

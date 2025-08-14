@@ -12,13 +12,15 @@
 
 ## ✨ 主要功能
 
-- 🔍 **智能IP检测**: 使用IPinfo.io和ip-api.com双重检测机制
+- 🔍 **专业代理检测**: 集成ProxyCheck.io专业代理检测API，提供0-100风险评分
+- 📊 **多数据源保障**: ProxyCheck.io + IPinfo.io + ip-api.com 三重检测机制
 - 📡 **多格式订阅支持**: 支持vmess、vless、trojan、ss、ssr等协议
-- 🎯 **纯净度筛选**: 自动识别并过滤数据中心、CDN、代理服务器IP
+- 🎯 **智能纯净度筛选**: 专业算法识别数据中心、VPN、代理服务器IP
 - ⚡ **Clash配置生成**: 自动生成按国家和纯净度分组的Clash配置
+- 🌐 **Web界面**: 响应式设计，支持桌面和移动设备
 - 🤖 **自动化检查**: 支持GitHub Actions定时检查
-- ☁️ **多平台部署**: 支持Cloudflare Workers和Vercel部署
-- 📊 **详细报告**: 生成包含IP信息和纯净度的CSV报告
+- ☁️ **多平台部署**: 支持Vercel、Cloudflare Workers等平台
+- 📊 **详细报告**: 生成包含风险评分和纯净度的CSV报告
 
 ## 📋 目录
 

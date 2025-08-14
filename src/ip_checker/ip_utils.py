@@ -12,19 +12,37 @@ logger = logging.getLogger(__name__)
 
 # --- Core IP Information Fetching ---
 
-def fetch_ip_info(ip: str, proxy: Optional[Dict] = None, timeout: int = 8) -> Optional[Dict]:
+def fetch_ip_info(ip: str, proxy: Optional[Dict] = None, timeout: int = 10, api_key: Optional[str] = None) -> Optional[Dict]:
     """
-    Fetches IP geolocation and ASN info.
-    优先使用IPinfo.io，失败时回退到ip-api.com
+    Fetches IP geolocation and purity info.
+    现在优先使用ProxyCheck.io进行专业的代理/VPN检测
     """
-    # 首先尝试IPinfo.io
+    # 首先尝试ProxyCheck.io（专业的代理检测）
+    result = _fetch_ip_info_proxycheck(ip, api_key, timeout)
+    if result and result.get('status') == 'success':
+        return result
+
+    # 回退到IPinfo.io
+    logger.debug(f'ProxyCheck failed for {ip}, falling back to IPinfo.io')
     result = _fetch_ip_info_ipinfo(ip, timeout)
     if result and result.get('status') == 'success':
         return result
 
-    # 回退到ip-api.com
+    # 最后回退到ip-api.com
     logger.debug(f'IPinfo failed for {ip}, falling back to ip-api.com')
     return _fetch_ip_info_legacy(ip, proxy, timeout)
+
+def _fetch_ip_info_proxycheck(ip: str, api_key: Optional[str] = None, timeout: int = 10) -> Optional[Dict]:
+    """使用ProxyCheck.io获取IP信息（专业代理检测）"""
+    try:
+        from .proxycheck_provider import fetch_ip_info_proxycheck
+        return fetch_ip_info_proxycheck(ip, api_key, timeout)
+    except ImportError:
+        logger.warning("ProxyCheck provider not available")
+        return None
+    except Exception as e:
+        logger.warning(f'ProxyCheck.io failed for {ip}: {e}')
+        return None
 
 def _fetch_ip_info_ipinfo(ip: str, timeout: int = 8) -> Optional[Dict]:
     """使用IPinfo.io获取IP信息"""
@@ -60,12 +78,23 @@ def _fetch_ip_info_legacy(ip: str, proxy: Optional[Dict] = None, timeout: int = 
 def is_pure_ip(ip_info: Optional[Dict]) -> bool:
     """
     Determines if an IP is 'pure' (not from a known cloud/hosting provider).
-    支持IPinfo.io的privacy信息和传统的关键词检测
+    现在优先支持ProxyCheck.io的专业检测结果，回退到IPinfo.io和关键词检测
     """
     if not ip_info or ip_info.get("status") != "success":
         return False
 
-    # 优先使用IPinfo.io的privacy信息（更准确）
+    # 优先使用ProxyCheck.io的专业检测结果
+    if ip_info.get('provider') == 'proxycheck.io':
+        is_pure = ip_info.get('is_pure', False)
+        risk_score = ip_info.get('risk_score', 0)
+        is_proxy = ip_info.get('is_proxy', False)
+        proxy_type = ip_info.get('proxy_type', '')
+
+        logger.info(f"IP {ip_info.get('query')} ProxyCheck result: "
+                   f"pure={is_pure}, risk={risk_score}, proxy={is_proxy}, type={proxy_type}")
+        return is_pure
+
+    # 回退到IPinfo.io的privacy信息
     if 'privacy' in ip_info or any(key in ip_info for key in ['hosting', 'vpn', 'proxy', 'tor']):
         is_hosting = ip_info.get('hosting', False)
         is_vpn = ip_info.get('vpn', False)

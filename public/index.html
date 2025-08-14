@@ -357,8 +357,13 @@
                 <input type="text" id="ipInput" placeholder="例如：8.8.8.8" />
             </div>
             <div class="input-group">
-                <label for="tokenInput">IPinfo.io Token（可选）：</label>
-                <input type="password" id="tokenInput" placeholder="输入token以提升查询精度和速率限制" />
+                <label for="proxycheckKeyInput">ProxyCheck.io API Key（推荐）：</label>
+                <input type="password" id="proxycheckKeyInput" placeholder="专业代理检测API密钥，1000次/天免费" />
+                <small>获取免费API Key：<a href="https://proxycheck.io/api/" target="_blank">https://proxycheck.io/api/</a></small>
+            </div>
+            <div class="input-group">
+                <label for="tokenInput">IPinfo.io Token（备用）：</label>
+                <input type="password" id="tokenInput" placeholder="备用API token" />
                 <small>获取免费token：<a href="https://ipinfo.io/signup" target="_blank">https://ipinfo.io/signup</a></small>
             </div>
             <button class="btn" onclick="checkSingleIP()">检查纯净度</button>
@@ -379,8 +384,12 @@
                 <textarea id="batchIpInput" rows="8" placeholder="8.8.8.8&#10;1.1.1.1&#10;114.114.114.114"></textarea>
             </div>
             <div class="input-group">
-                <label for="batchTokenInput">IPinfo.io Token（可选）：</label>
-                <input type="password" id="batchTokenInput" placeholder="输入token以提升查询精度和速率限制" />
+                <label for="batchProxycheckKeyInput">ProxyCheck.io API Key（推荐）：</label>
+                <input type="password" id="batchProxycheckKeyInput" placeholder="专业代理检测API密钥" />
+            </div>
+            <div class="input-group">
+                <label for="batchTokenInput">IPinfo.io Token（备用）：</label>
+                <input type="password" id="batchTokenInput" placeholder="备用API token" />
             </div>
             <button class="btn" onclick="checkBatchIPs()">批量检测</button>
 
@@ -401,8 +410,12 @@
                 <small>支持格式：vmess、vless、trojan、ss、ssr、clash yaml等</small>
             </div>
             <div class="input-group">
-                <label for="subTokenInput">IPinfo.io Token（可选）：</label>
-                <input type="password" id="subTokenInput" placeholder="输入token以提升查询精度和速率限制" />
+                <label for="subProxycheckKeyInput">ProxyCheck.io API Key（推荐）：</label>
+                <input type="password" id="subProxycheckKeyInput" placeholder="专业代理检测API密钥" />
+            </div>
+            <div class="input-group">
+                <label for="subTokenInput">IPinfo.io Token（备用）：</label>
+                <input type="password" id="subTokenInput" placeholder="备用API token" />
             </div>
             <div class="input-group">
                 <label>
@@ -491,6 +504,7 @@
         // 单IP检测功能
         async function checkSingleIP() {
             const ipInput = document.getElementById('ipInput');
+            const proxycheckKeyInput = document.getElementById('proxycheckKeyInput');
             const tokenInput = document.getElementById('tokenInput');
             const loading = document.getElementById('loading');
             const result = document.getElementById('result');
@@ -511,7 +525,13 @@
                 let url = `/api/check-ip?ip=${encodeURIComponent(ip)}`;
                 const headers = {};
 
-                // 如果提供了token，添加到请求头
+                // 优先使用ProxyCheck.io API密钥
+                const proxycheckKey = proxycheckKeyInput.value.trim();
+                if (proxycheckKey) {
+                    headers['X-ProxyCheck-Key'] = proxycheckKey;
+                }
+
+                // 备用IPinfo.io token
                 const token = tokenInput.value.trim();
                 if (token) {
                     headers['X-IPInfo-Token'] = token;
@@ -536,6 +556,7 @@
         // 批量IP检测功能
         async function checkBatchIPs() {
             const batchIpInput = document.getElementById('batchIpInput');
+            const batchProxycheckKeyInput = document.getElementById('batchProxycheckKeyInput');
             const batchTokenInput = document.getElementById('batchTokenInput');
             const batchLoading = document.getElementById('batchLoading');
             const batchResult = document.getElementById('batchResult');
@@ -559,6 +580,7 @@
             btn.disabled = true;
 
             const results = [];
+            const proxycheckKey = batchProxycheckKeyInput.value.trim();
             const token = batchTokenInput.value.trim();
 
             try {
@@ -575,6 +597,9 @@
                     const ip = ips[i];
                     try {
                         const headers = {};
+                        if (proxycheckKey) {
+                            headers['X-ProxyCheck-Key'] = proxycheckKey;
+                        }
                         if (token) {
                             headers['X-IPInfo-Token'] = token;
                         }
@@ -664,6 +689,7 @@
         // 订阅检测功能
         async function checkSubscriptions() {
             const subscriptionInput = document.getElementById('subscriptionInput');
+            const subProxycheckKeyInput = document.getElementById('subProxycheckKeyInput');
             const subTokenInput = document.getElementById('subTokenInput');
             const generateClash = document.getElementById('generateClash');
             const subLoading = document.getElementById('subLoading');
@@ -688,8 +714,12 @@
             btn.disabled = true;
 
             try {
+                const proxycheckKey = subProxycheckKeyInput.value.trim();
                 const token = subTokenInput.value.trim();
                 const headers = {};
+                if (proxycheckKey) {
+                    headers['X-ProxyCheck-Key'] = proxycheckKey;
+                }
                 if (token) {
                     headers['X-IPInfo-Token'] = token;
                 }
@@ -789,16 +819,32 @@
             const purityText = data.isPure ? '✅ 纯净IP' : '❌ 非纯净IP';
             const purityClass = data.isPure ? 'success' : 'warning';
 
-            let privacyInfo = '';
-            if (data.privacy) {
-                const privacy = data.privacy;
-                privacyInfo = `
-                    <h4>详细信息：</h4>
+            let detailInfo = '';
+
+            // ProxyCheck.io详细信息
+            if (data.provider === 'proxycheck.io') {
+                detailInfo = `
+                    <h4>ProxyCheck.io 专业检测结果：</h4>
                     <ul>
-                        <li>托管服务器: ${privacy.hosting ? '是' : '否'}</li>
-                        <li>VPN: ${privacy.vpn ? '是' : '否'}</li>
-                        <li>代理: ${privacy.proxy ? '是' : '否'}</li>
-                        <li>Tor: ${privacy.tor ? '是' : '否'}</li>
+                        <li><strong>风险评分:</strong> ${data.risk_score || 0}/100</li>
+                        <li><strong>代理检测:</strong> ${data.is_proxy ? '是' : '否'}</li>
+                        <li><strong>代理类型:</strong> ${data.proxy_type || '无'}</li>
+                        <li><strong>托管服务器:</strong> ${data.privacy?.hosting ? '是' : '否'}</li>
+                        <li><strong>VPN:</strong> ${data.privacy?.vpn ? '是' : '否'}</li>
+                        <li><strong>代理:</strong> ${data.privacy?.proxy ? '是' : '否'}</li>
+                        <li><strong>Tor:</strong> ${data.privacy?.tor ? '是' : '否'}</li>
+                    </ul>
+                `;
+            } else if (data.privacy) {
+                // IPinfo.io隐私信息
+                const privacy = data.privacy;
+                detailInfo = `
+                    <h4>IPinfo.io 检测结果：</h4>
+                    <ul>
+                        <li><strong>托管服务器:</strong> ${privacy.hosting ? '是' : '否'}</li>
+                        <li><strong>VPN:</strong> ${privacy.vpn ? '是' : '否'}</li>
+                        <li><strong>代理:</strong> ${privacy.proxy ? '是' : '否'}</li>
+                        <li><strong>Tor:</strong> ${privacy.tor ? '是' : '否'}</li>
                     </ul>
                 `;
             }
@@ -808,8 +854,9 @@
                 <p><strong>IP:</strong> ${data.ip}</p>
                 <p><strong>位置:</strong> ${data.city}, ${data.country}</p>
                 <p><strong>组织:</strong> ${data.org}</p>
-                ${privacyInfo}
-                <p><small>检测时间: ${new Date(data.timestamp).toLocaleString()}</small></p>
+                ${detailInfo}
+                <p><small>检测时间: ${new Date(data.timestamp || Date.now()).toLocaleString()}</small></p>
+                <p><small>数据来源: ${data.provider || 'ip-api.com'}</small></p>
             `;
 
             showResult(resultHTML, purityClass, resultId);
@@ -926,34 +973,42 @@
             }
         });
 
-        // 自动保存用户输入的token（仅在当前会话）
+        // 自动保存用户输入的API密钥（仅在当前会话）
         function saveTokenToSession() {
-            const tokens = [
-                document.getElementById('tokenInput'),
-                document.getElementById('batchTokenInput'),
-                document.getElementById('subTokenInput')
+            const inputs = [
+                { id: 'proxycheckKeyInput', key: 'proxycheck_key_0' },
+                { id: 'tokenInput', key: 'ipinfo_token_0' },
+                { id: 'batchProxycheckKeyInput', key: 'proxycheck_key_1' },
+                { id: 'batchTokenInput', key: 'ipinfo_token_1' },
+                { id: 'subProxycheckKeyInput', key: 'proxycheck_key_2' },
+                { id: 'subTokenInput', key: 'ipinfo_token_2' }
             ];
 
-            tokens.forEach((input, index) => {
+            inputs.forEach(({ id, key }) => {
+                const input = document.getElementById(id);
                 if (input && input.value.trim()) {
-                    sessionStorage.setItem(`ipinfo_token_${index}`, input.value.trim());
+                    sessionStorage.setItem(key, input.value.trim());
                 }
             });
         }
 
-        // 从会话存储恢复token
+        // 从会话存储恢复API密钥
         function restoreTokenFromSession() {
-            const tokens = [
-                document.getElementById('tokenInput'),
-                document.getElementById('batchTokenInput'),
-                document.getElementById('subTokenInput')
+            const inputs = [
+                { id: 'proxycheckKeyInput', key: 'proxycheck_key_0' },
+                { id: 'tokenInput', key: 'ipinfo_token_0' },
+                { id: 'batchProxycheckKeyInput', key: 'proxycheck_key_1' },
+                { id: 'batchTokenInput', key: 'ipinfo_token_1' },
+                { id: 'subProxycheckKeyInput', key: 'proxycheck_key_2' },
+                { id: 'subTokenInput', key: 'ipinfo_token_2' }
             ];
 
-            tokens.forEach((input, index) => {
+            inputs.forEach(({ id, key }) => {
+                const input = document.getElementById(id);
                 if (input) {
-                    const savedToken = sessionStorage.getItem(`ipinfo_token_${index}`);
-                    if (savedToken) {
-                        input.value = savedToken;
+                    const savedValue = sessionStorage.getItem(key);
+                    if (savedValue) {
+                        input.value = savedValue;
                     }
                 }
             });
@@ -963,14 +1018,15 @@
         document.addEventListener('DOMContentLoaded', function() {
             restoreTokenFromSession();
 
-            // 监听token输入变化，自动保存
-            const tokenInputs = [
-                document.getElementById('tokenInput'),
-                document.getElementById('batchTokenInput'),
-                document.getElementById('subTokenInput')
+            // 监听API密钥输入变化，自动保存
+            const apiInputs = [
+                'proxycheckKeyInput', 'tokenInput',
+                'batchProxycheckKeyInput', 'batchTokenInput',
+                'subProxycheckKeyInput', 'subTokenInput'
             ];
 
-            tokenInputs.forEach(input => {
+            apiInputs.forEach(inputId => {
+                const input = document.getElementById(inputId);
                 if (input) {
                     input.addEventListener('blur', saveTokenToSession);
                 }
