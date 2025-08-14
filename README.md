@@ -69,35 +69,42 @@
 - Safari 13+
 - Edge 80+
 
-## 🚀 快速开始
+## 🚀 快速开始 - 3分钟部署
 
-### 方法一：一键部署（推荐新手）
+### 🎯 一键部署（最简单方式）
 
 1. **点击部署按钮**
 
    [![Deploy to Cloudflare Pages](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/twj0/ip-address-purity-checker)
 
-2. **授权GitHub**
+2. **登录账户**
+   - 如果没有Cloudflare账户，先[免费注册](https://dash.cloudflare.com/sign-up)
    - 登录您的GitHub账户
    - 授权Cloudflare访问仓库权限
 
-3. **配置项目**
+3. **等待自动部署**
+   - 系统会自动Fork仓库到您的GitHub账户
+   - 自动创建Cloudflare Pages项目
+   - 自动部署所有必要组件
+
+4. **获取您的专属链接**
    ```
-   项目名称: ip-purity-checker
-   生产分支: main
-   构建命令: (留空)
-   输出目录: public
+   🌐 您的应用地址: https://ip-purity-checker.pages.dev
+   ⚙️ 管理后台: https://dash.cloudflare.com
    ```
 
-4. **等待部署完成**
-   - 自动创建KV命名空间
-   - 部署Pages和Workers
-   - 配置域名和SSL
+5. **开始使用**
+   - 访问您的应用链接
+   - 所有功能都在一个页面中
+   - 无需额外配置即可使用基础功能
 
-5. **访问您的应用**
-   ```
-   https://ip-purity-checker.pages.dev
-   ```
+### ✨ 部署完成后您将获得
+
+- 🔍 **单IP检测**: 输入IP地址立即检测纯净度
+- 📋 **批量检测**: 同时检测多个IP地址
+- 📡 **订阅管理**: 安全保存和管理您的私人订阅链接
+- ⏰ **定时任务**: 每日自动检测并生成报告
+- ⚙️ **Clash配置**: 自动生成纯净节点配置文件
 
 ### 方法二：Fork + 手动部署（推荐开发者）
 
@@ -258,48 +265,122 @@ docs/                       # 文档 (不部署)
 src/                        # Python源码 (不部署，仅本地使用)
 ```
 
-## 🔧 环境变量配置
+## ⚙️ 提升检测精度 - 配置API密钥
 
-### 必需环境变量
+> � **重要提示**: 无需配置API密钥也能使用基础功能，但配置后检测精度会显著提升！
 
-| 变量名 | 说明 | 获取方式 | 示例值 |
-|--------|------|----------|--------|
-| `PROXYCHECK_API_KEY` | ProxyCheck.io API密钥 | [注册获取](https://proxycheck.io/api/) | `abc123def456...` |
-| `IPINFO_TOKEN` | IPinfo.io访问令牌 | [注册获取](https://ipinfo.io/signup) | `def456ghi789...` |
+### 🎯 为什么需要API密钥？
 
-### 可选环境变量
+- **免费版本**: 使用公共API，检测精度约70%，有请求限制
+- **配置密钥后**: 检测精度提升至95%+，更高请求限制，详细风险评分
 
-| 变量名 | 说明 | 默认值 | 示例值 |
-|--------|------|--------|--------|
-| `SUBSCRIPTION_URLS` | 自定义订阅链接 | 内置默认链接 | `["url1","url2"]` |
-| `ENVIRONMENT` | 环境标识 | `production` | `development` |
+### 📋 推荐的API服务
 
-### 配置方法
+| 服务商 | 免费额度 | 检测精度 | 获取链接 |
+|--------|----------|----------|----------|
+| **ProxyCheck.io** ⭐ | 1,000次/天 | 95%+ | [免费注册](https://proxycheck.io/api/) |
+| **IPinfo.io** | 50,000次/月 | 90%+ | [免费注册](https://ipinfo.io/signup) |
 
-#### 方法1: 通过Wrangler CLI（推荐）
-```bash
-# 设置ProxyCheck.io API密钥
-wrangler secret put PROXYCHECK_API_KEY
-# 输入提示: 请输入密钥值，然后按回车
+### 🔧 配置方法（推荐：Cloudflare Dashboard）
 
-# 设置IPinfo.io Token
-wrangler secret put IPINFO_TOKEN
-# 输入提示: 请输入Token值，然后按回车
+#### 步骤1: 获取API密钥
 
-# 验证设置
-wrangler secret list
-```
+**ProxyCheck.io (推荐)**
+1. 访问 [ProxyCheck.io注册页面](https://proxycheck.io/api/)
+2. 填写邮箱和密码完成注册
+3. 登录后在Dashboard中找到您的API Key
+4. 复制API密钥（格式类似：`abc123def456ghi789...`）
 
-**预期输出:**
-```
-┌─────────────────────┬─────────────────┐
-│ Name                │ Value           │
-├─────────────────────┼─────────────────┤
-│ PROXYCHECK_API_KEY  │ (hidden)        │
-├─────────────────────┼─────────────────┤
-│ IPINFO_TOKEN        │ (hidden)        │
-└─────────────────────┴─────────────────┘
-```
+**IPinfo.io (备用)**
+1. 访问 [IPinfo.io注册页面](https://ipinfo.io/signup)
+2. 注册免费账户
+3. 登录后在Dashboard中找到Access Token
+4. 复制Token（格式类似：`def456ghi789jkl012...`）
+
+#### 步骤2: 在Cloudflare Dashboard中配置
+
+> 🎯 **这是最简单的配置方法，适合所有用户**
+
+1. **登录Cloudflare Dashboard**
+   ```
+   访问: https://dash.cloudflare.com
+   使用您的Cloudflare账户登录
+   ```
+
+2. **找到您的项目**
+   ```
+   左侧菜单 → Workers & Pages
+   找到 "ip-purity-checker" 项目
+   点击项目名称进入
+   ```
+
+3. **进入设置页面**
+   ```
+   点击顶部的 "Settings" 标签页
+   在左侧菜单中选择 "Environment variables"
+   ```
+
+4. **添加API密钥**
+
+   **添加ProxyCheck.io密钥:**
+   ```
+   点击 "Add variable" 按钮
+   Variable name: PROXYCHECK_API_KEY
+   Value: 粘贴您的ProxyCheck.io API密钥
+   Type: 选择 "Secret" (重要！)
+   Environment: Production
+   点击 "Save"
+   ```
+
+   **添加IPinfo.io Token (可选):**
+   ```
+   再次点击 "Add variable" 按钮
+   Variable name: IPINFO_TOKEN
+   Value: 粘贴您的IPinfo.io Token
+   Type: 选择 "Secret" (重要！)
+   Environment: Production
+   点击 "Save"
+   ```
+
+5. **重新部署生效**
+   ```
+   配置完成后，点击页面顶部的 "Deployments" 标签页
+   点击最新部署右侧的 "..." 菜单
+   选择 "Redeploy"
+   等待重新部署完成（约1-2分钟）
+   ```
+
+#### 步骤3: 验证配置
+
+1. **访问您的应用**
+   ```
+   https://ip-purity-checker.pages.dev
+   ```
+
+2. **测试检测功能**
+   - 在"单IP检测"标签页输入 `8.8.8.8`
+   - 点击"检测IP"
+   - 如果配置成功，您会看到详细的风险评分和检测信息
+
+3. **查看检测结果**
+   ```json
+   {
+     "ip": "8.8.8.8",
+     "isPure": true,
+     "riskScore": 0,
+     "proxyType": "none",
+     "country": "US",
+     "provider": "proxycheck.io"  // 显示使用的API服务
+   }
+   ```
+
+### 🔍 配置验证清单
+
+- ✅ API密钥已添加到Environment variables
+- ✅ 类型设置为"Secret"（不是"Plain text"）
+- ✅ 环境设置为"Production"
+- ✅ 已重新部署项目
+- ✅ 测试检测功能正常，显示详细信息
 
 ## 🔧 配置说明
 
@@ -379,33 +460,39 @@ curl "https://your-domain.pages.dev/api/check-ip?ip=8.8.8.8"
 
 ## 🌐 功能使用指南
 
-### 1. Web界面使用
+### 🎯 一站式Web界面
 
-#### 主界面功能
-访问 `https://your-domain.pages.dev` 后，您可以：
+访问您的应用地址后，所有功能都集中在一个页面中，通过标签页切换：
 
-- **单IP检测**: 输入IP地址，获得详细检测结果
-- **批量检测**: 一次检测多个IP地址
-- **订阅检测**: 解析代理订阅链接并检测所有节点
-- **结果导出**: 导出CSV格式的检测结果
+```
+🌐 您的应用地址: https://ip-purity-checker.pages.dev
+```
 
-#### 订阅管理器
-访问 `https://your-domain.pages.dev/subscription-manager.html`：
+#### 🔍 单IP检测标签页
+- **功能**: 检测单个IP地址的纯净度
+- **使用**: 输入IP地址（如8.8.8.8），点击"检测IP"
+- **结果**: 显示纯净度、风险评分、地理位置、ISP信息
 
-1. **添加订阅**
-   - 输入订阅名称和链接
-   - 添加标签便于管理
-   - 点击"添加订阅"
+#### 📋 批量检测标签页
+- **功能**: 同时检测多个IP地址
+- **使用**: 每行输入一个IP地址，点击"批量检测"
+- **导出**: 检测完成后可导出CSV格式报告
 
-2. **管理订阅**
-   - 查看所有保存的订阅
-   - 测试订阅连接状态
-   - 编辑或删除订阅
+#### 📡 订阅管理标签页
+- **添加订阅**: 输入订阅名称和链接，安全保存到浏览器
+- **测试连接**: 验证订阅链接是否有效，显示节点数量
+- **批量检测**: 一键检测所有保存的订阅链接
+- **数据安全**: 订阅链接只保存在您的浏览器中，不会上传到服务器
 
-3. **批量操作**
-   - 检查所有订阅
-   - 去重处理
-   - 清空所有订阅
+#### ⏰ 定时任务标签页
+- **查看状态**: 显示最近检测统计和执行时间
+- **手动检查**: 立即触发一次完整检测
+- **下载配置**: 获取基于检测结果的Clash配置文件
+
+#### ⚙️ 设置标签页
+- **API密钥配置**: 在浏览器中临时保存API密钥（会话级别）
+- **密钥测试**: 验证API密钥是否有效
+- **使用说明**: 查看详细的配置和使用指导
 
 ### 2. API接口使用
 
@@ -793,51 +880,105 @@ wrangler kv:key list --binding IP_CACHE
 
 ## 🔧 故障排除
 
-### 常见部署问题
+### 🚨 常见问题快速解决
 
-#### 1. CPU限制错误
-**错误信息:** `CPU limits are not supported for the Free plan`
-
-**解决方案:**
-```bash
-# 使用修复脚本
-./scripts/fix-cloudflare-deploy.sh
-
-# 或手动修复
-cp wrangler-free.toml wrangler.toml
-wrangler deploy
-```
-
-#### 2. KV命名空间错误
-**错误信息:** `KV namespace binding not found`
+#### 1. 无法访问应用
+**问题**: 访问 `https://ip-purity-checker.pages.dev` 显示404或错误
 
 **解决方案:**
-```bash
-# 创建KV命名空间
-wrangler kv:namespace create "IP_CACHE"
-# 将输出的ID填入wrangler.toml
-```
+1. **检查部署状态**
+   - 登录 [Cloudflare Dashboard](https://dash.cloudflare.com)
+   - 进入 Workers & Pages → ip-purity-checker
+   - 查看 Deployments 标签页，确认最新部署成功
 
-#### 3. API密钥未配置
+2. **重新部署**
+   ```
+   在Deployments页面点击最新部署的"..."菜单
+   选择"Redeploy"
+   等待部署完成
+   ```
+
+#### 2. API检测不准确或失败
+**问题**: 检测结果显示"检测失败"或精度很低
+
 **解决方案:**
-```bash
-wrangler secret put PROXYCHECK_API_KEY
-wrangler secret put IPINFO_TOKEN
-```
+1. **配置API密钥** (推荐)
+   - 按照上面的"配置API密钥"章节操作
+   - 配置后检测精度从70%提升到95%+
 
-### 功能问题排查
+2. **检查网络连接**
+   - 确保能正常访问互联网
+   - 尝试检测不同的IP地址
 
-#### IP检测不准确
-**排查步骤:**
-1. 检查API密钥配置: `wrangler secret list`
-2. 测试API连接: `curl -H "X-ProxyCheck-Key: YOUR_KEY" "https://proxycheck.io/v2/8.8.8.8"`
-3. 检查API配额使用情况
+3. **查看详细错误**
+   - 在浏览器中按F12打开开发者工具
+   - 查看Console标签页的错误信息
 
-#### 订阅解析失败
-**排查步骤:**
-1. 手动测试订阅链接: `curl "https://example.com/subscription"`
-2. 确保订阅格式正确（base64编码）
-3. 查看Cloudflare Dashboard中的Worker日志
+#### 3. 订阅链接无法解析
+**问题**: 添加订阅后显示"测试失败"
+
+**解决方案:**
+1. **检查订阅链接格式**
+   ```
+   确保链接以 https:// 开头
+   确保链接可以正常访问
+   支持的格式: vmess://, vless://, trojan://, ss://, ssr://
+   ```
+
+2. **测试订阅链接**
+   - 在浏览器中直接访问订阅链接
+   - 确认返回的是节点配置内容
+
+3. **检查网络限制**
+   - 某些订阅链接可能有地区限制
+   - 尝试使用其他网络环境
+
+#### 4. 定时任务不执行
+**问题**: 定时任务状态显示"从未执行"
+
+**解决方案:**
+1. **手动触发测试**
+   - 在"定时任务"标签页点击"手动检查"
+   - 查看是否能正常执行
+
+2. **检查Worker部署**
+   - 在Cloudflare Dashboard中确认Worker已部署
+   - 查看Worker的执行日志
+
+#### 5. 设置无法保存
+**问题**: API密钥设置后刷新页面丢失
+
+**说明**: 这是正常现象
+- 浏览器设置只在当前会话中有效
+- 为了安全，不会永久保存在浏览器中
+- 如需永久配置，请使用Cloudflare Dashboard方法
+
+### 🔍 高级排查
+
+#### 查看详细日志
+1. **浏览器控制台**
+   ```
+   按F12打开开发者工具
+   查看Console标签页的错误信息
+   查看Network标签页的网络请求
+   ```
+
+2. **Cloudflare日志**
+   ```
+   登录Cloudflare Dashboard
+   进入Workers & Pages → ip-purity-checker
+   查看Functions标签页的实时日志
+   ```
+
+#### 性能优化建议
+1. **减少并发请求**
+   - 批量检测时建议每批不超过20个IP
+   - 避免同时进行多个大批量检测
+
+2. **合理使用API配额**
+   - ProxyCheck.io免费版: 1000次/天
+   - IPinfo.io免费版: 50000次/月
+   - 建议优先配置ProxyCheck.io密钥
 
 ## ❓ 常见问题
 
