@@ -9,17 +9,17 @@ on:
       force_update:
         description: '强制更新（忽略冲突）'
         required: false
-        default: 'false'
+        default: false
         type: boolean
       notify_user:
         description: '发送更新通知'
         required: false
-        default: 'true'
+        default: true
         type: boolean
       backup_config:
         description: '备份用户配置'
         required: false
-        default: 'true'
+        default: true
         type: boolean
 
 jobs:

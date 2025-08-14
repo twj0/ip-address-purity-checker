@@ -63,6 +63,10 @@ async function handleRequest(request, env, ctx) {
             case '/api/clash-config':
                 return handleClashConfig(env);
 
+            case '/clash-config.yaml':
+            case '/api/clash-config.yaml':
+                return handleOptimizedClashConfig(env);
+
             default:
                 return new Response('Not Found', { status: 404 });
         }
@@ -126,9 +130,9 @@ async function performFullCheck(env) {
         try {
             const ips = await extractIPsFromSubscription(url);
             ips.forEach(ip => allIPs.add(ip));
-            console.log(`Extracted ${ips.length} IPs from ${url}`);
+            console.log('Extracted ' + ips.length + ' IPs from ' + url);
         } catch (error) {
-            console.warn(`Failed to process subscription ${url}:`, error.message);
+            console.warn('Failed to process subscription ' + url + ':', error.message);
         }
     }
     
@@ -198,7 +202,7 @@ async function extractIPsFromSubscription(url) {
     try {
         const response = await fetch(url, { timeout: 15000 });
         if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
+            throw new Error('HTTP ' + response.status);
         }
         
         let content = await response.text();
@@ -227,7 +231,7 @@ async function extractIPsFromSubscription(url) {
         return [...new Set(validIPs)]; // 去重
         
     } catch (error) {
-        throw new Error(`Failed to extract IPs from ${url}: ${error.message}`);
+        throw new Error('Failed to extract IPs from ' + url + ': ' + error.message);
     }
 }
 
@@ -669,7 +673,40 @@ async function handleCheckSubscription(request, env) {
     }
 }
 
-// 处理Clash配置下载
+// 处理优化的Clash配置下载（带IP去重和纯净度排序）
+async function handleOptimizedClashConfig(env) {
+    try {
+        // 获取所有订阅链接的IP数据
+        const allIPs = await aggregateAndRankIPs(env);
+
+        // 生成优化的Clash配置
+        const clashConfig = await generateOptimizedClashConfig(allIPs, env);
+
+        // 转换为YAML格式
+        const yamlContent = convertToYAML(clashConfig);
+
+        return new Response(yamlContent, {
+            headers: {
+                'Content-Type': 'text/yaml; charset=utf-8',
+                'Content-Disposition': 'attachment; filename="clash-config-optimized.yaml"',
+                'Access-Control-Allow-Origin': '*',
+                'Cache-Control': 'public, max-age=3600' // 缓存1小时
+            }
+        });
+
+    } catch (error) {
+        console.error('Generate optimized Clash config error:', error);
+        return new Response(JSON.stringify({
+            error: 'Failed to generate optimized Clash config',
+            message: error.message
+        }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' }
+        });
+    }
+}
+
+// 处理基础Clash配置下载
 async function handleClashConfig(env) {
     try {
         // 生成基础Clash配置
@@ -1203,7 +1240,7 @@ function getConsolidatedHomePage() {
         function showAlert(message, type = 'success') {
             const alertContainer = document.getElementById('alertContainer');
             const alertDiv = document.createElement('div');
-            alertDiv.className = \`alert alert-\${type}\`;
+            alertDiv.className = 'alert alert-' + type;
             alertDiv.textContent = message;
             alertDiv.style.display = 'block';
 
@@ -1243,7 +1280,7 @@ function getConsolidatedHomePage() {
                     headers['X-IPInfo-Token'] = apiKeys.ipinfo;
                 }
 
-                const response = await fetch(\`/api/check-ip?ip=\${encodeURIComponent(ip)}\`, {
+                const response = await fetch('/api/check-ip?ip=' + encodeURIComponent(ip), {
                     headers: headers
                 });
 
@@ -1276,7 +1313,7 @@ function getConsolidatedHomePage() {
                 return;
             }
 
-            showResult('batchResult', \`正在检测 \${ips.length} 个IP地址...\`);
+            showResult('batchResult', '正在检测 ' + ips.length + ' 个IP地址...');
 
             const results = [];
             const headers = {};
@@ -1289,10 +1326,10 @@ function getConsolidatedHomePage() {
 
             for (let i = 0; i < ips.length; i++) {
                 const ip = ips[i];
-                showResult('batchResult', \`正在检测 \${i + 1}/\${ips.length}: \${ip}\`);
+                showResult('batchResult', '正在检测 ' + (i + 1) + '/' + ips.length + ': ' + ip);
 
                 try {
-                    const response = await fetch(\`/api/check-ip?ip=\${encodeURIComponent(ip)}\`, {
+                    const response = await fetch('/api/check-ip?ip=' + encodeURIComponent(ip), {
                         headers: headers
                     });
                     const data = await response.json();
@@ -1312,7 +1349,7 @@ function getConsolidatedHomePage() {
             }
 
             showResult('batchResult', results);
-            showAlert(\`批量检测完成，共检测 \${results.length} 个IP\`, 'success');
+            showAlert('批量检测完成，共检测 ' + results.length + ' 个IP', 'success');
         }
 
         // 导出结果
@@ -1348,7 +1385,7 @@ function getConsolidatedHomePage() {
                 const blob = new Blob([csvHeader + csvContent], { type: 'text/csv;charset=utf-8;' });
                 const link = document.createElement('a');
                 link.href = URL.createObjectURL(blob);
-                link.download = \`ip_purity_check_\${new Date().toISOString().split('T')[0]}.csv\`;
+                link.download = 'ip_purity_check_' + new Date().toISOString().split('T')[0] + '.csv';
                 link.click();
 
                 showAlert('结果已导出为CSV文件', 'success');
@@ -1428,20 +1465,20 @@ function getConsolidatedHomePage() {
                 return;
             }
 
-            container.innerHTML = subscriptions.map(sub => \`
-                <div style="background: white; border: 1px solid #ddd; border-radius: 8px; padding: 15px; margin-bottom: 10px;">
-                    <h4 style="margin: 0 0 10px 0; color: #333;">\${sub.name}</h4>
-                    <div style="font-family: monospace; background: #f1f3f4; padding: 8px; border-radius: 4px; word-break: break-all; font-size: 12px; margin-bottom: 10px;">
-                        \${sub.url.substring(0, 80)}\${sub.url.length > 80 ? '...' : ''}
-                    </div>
-                    <div style="font-size: 12px; color: #666; margin-bottom: 10px;">
-                        创建时间: \${new Date(sub.createdAt).toLocaleString()} |
-                        最后检查: \${sub.lastChecked ? new Date(sub.lastChecked).toLocaleString() : '从未'}
-                    </div>
-                    <button class="btn" onclick="testSubscription('\${sub.id}')">🧪 测试</button>
-                    <button class="btn btn-danger" onclick="deleteSubscription('\${sub.id}')">🗑️ 删除</button>
-                </div>
-            \`).join('');
+            container.innerHTML = subscriptions.map(function(sub) {
+                return '<div style="background: white; border: 1px solid #ddd; border-radius: 8px; padding: 15px; margin-bottom: 10px;">' +
+                    '<h4 style="margin: 0 0 10px 0; color: #333;">' + sub.name + '</h4>' +
+                    '<div style="font-family: monospace; background: #f1f3f4; padding: 8px; border-radius: 4px; word-break: break-all; font-size: 12px; margin-bottom: 10px;">' +
+                        (sub.url.substring(0, 80) + (sub.url.length > 80 ? '...' : '')) +
+                    '</div>' +
+                    '<div style="font-size: 12px; color: #666; margin-bottom: 10px;">' +
+                        '创建时间: ' + new Date(sub.createdAt).toLocaleString() + ' | ' +
+                        '最后检查: ' + (sub.lastChecked ? new Date(sub.lastChecked).toLocaleString() : '从未') +
+                    '</div>' +
+                    '<button class="btn" onclick="testSubscription(\'' + sub.id + '\')">🧪 测试</button>' +
+                    '<button class="btn btn-danger" onclick="deleteSubscription(\'' + sub.id + '\')">🗑️删除</button>' +
+                '</div>';
+            }).join('');
         }
 
         // 测试单个订阅
@@ -1469,7 +1506,7 @@ function getConsolidatedHomePage() {
                     subscription.lastChecked = new Date().toISOString();
                     saveSubscriptions();
                     renderSubscriptions();
-                    showAlert(\`测试成功！发现 \${result.totalNodes} 个节点\`, 'success');
+                    showAlert('测试成功！发现 ' + result.totalNodes + ' 个节点', 'success');
                 } else {
                     subscription.status = 'error';
                     showAlert('测试失败: ' + result.error, 'error');
@@ -1501,7 +1538,7 @@ function getConsolidatedHomePage() {
             const results = [];
             for (let i = 0; i < subscriptions.length; i++) {
                 const sub = subscriptions[i];
-                showResult('subscriptionResult', \`正在检查 \${i + 1}/\${subscriptions.length}: \${sub.name}\`);
+                showResult('subscriptionResult', '正在检查 ' + (i + 1) + '/' + subscriptions.length + ': ' + sub.name);
 
                 try {
                     const response = await fetch('/api/check-subscription', {
@@ -1590,7 +1627,7 @@ function getConsolidatedHomePage() {
                     const blob = await response.blob();
                     const link = document.createElement('a');
                     link.href = URL.createObjectURL(blob);
-                    link.download = \`clash-config-\${new Date().toISOString().split('T')[0]}.yaml\`;
+                    link.download = 'clash-config-' + new Date().toISOString().split('T')[0] + '.yaml';
                     link.click();
                     showAlert('Clash配置下载成功', 'success');
                 } else {
@@ -1810,14 +1847,14 @@ function parseNodeLine(line) {
         // 直接IP地址
         else if (/^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/.test(line)) {
             return {
-                name: `Direct-${line}`,
+                name: 'Direct-' + line,
                 ip: line,
                 protocol: 'direct'
             };
         }
 
     } catch (error) {
-        console.warn(`Failed to parse node line: ${line}`, error);
+        console.warn('Failed to parse node line: ' + line, error);
     }
 
     return null;
@@ -1829,28 +1866,429 @@ function convertToYAML(obj, indent = 0) {
     let yaml = '';
 
     if (Array.isArray(obj)) {
-        obj.forEach(item => {
+        obj.forEach(function(item) {
             if (typeof item === 'object' && item !== null) {
-                yaml += `${spaces}- ${convertToYAML(item, indent + 1).trim()}\n`;
+                yaml += spaces + '- ' + convertToYAML(item, indent + 1).trim() + '\n';
             } else {
-                yaml += `${spaces}- ${item}\n`;
+                yaml += spaces + '- ' + item + '\n';
             }
         });
     } else if (typeof obj === 'object' && obj !== null) {
-        Object.entries(obj).forEach(([key, value]) => {
+        Object.entries(obj).forEach(function(entry) {
+            var key = entry[0];
+            var value = entry[1];
             if (Array.isArray(value)) {
-                yaml += `${spaces}${key}:\n`;
+                yaml += spaces + key + ':\n';
                 yaml += convertToYAML(value, indent + 1);
             } else if (typeof value === 'object' && value !== null) {
-                yaml += `${spaces}${key}:\n`;
+                yaml += spaces + key + ':\n';
                 yaml += convertToYAML(value, indent + 1);
             } else {
-                yaml += `${spaces}${key}: ${value}\n`;
+                yaml += spaces + key + ': ' + value + '\n';
             }
         });
     } else {
-        yaml = `${obj}`;
+        yaml = String(obj);
     }
 
     return yaml;
+}
+
+// 聚合和排序IP地址
+async function aggregateAndRankIPs(env) {
+    try {
+        // 获取默认订阅链接
+        const defaultSubscriptions = [
+            'https://raw.githubusercontent.com/mahdibland/V2RayAggregator/master/sub/sub_merge_base64.txt',
+            'https://raw.githubusercontent.com/peasoft/NoMoreWalls/master/list.txt',
+            'https://raw.githubusercontent.com/freefq/free/master/v2'
+        ];
+
+        // 从KV存储获取用户自定义订阅（如果有）
+        let customSubscriptions = [];
+        if (env.IP_CACHE) {
+            try {
+                const customData = await env.IP_CACHE.get('custom_subscriptions');
+                if (customData) {
+                    customSubscriptions = JSON.parse(customData);
+                }
+            } catch (e) {
+                console.warn('Failed to load custom subscriptions:', e);
+            }
+        }
+
+        const allSubscriptions = [...defaultSubscriptions, ...customSubscriptions];
+        const ipMap = new Map(); // 用于去重，key为IP，value为节点信息
+
+        // 处理每个订阅链接
+        for (const url of allSubscriptions) {
+            try {
+                console.log('Processing subscription:', url);
+                const ips = await extractIPsFromSubscription(url);
+
+                for (const ipData of ips) {
+                    const ip = ipData.ip;
+                    if (!ip || !isValidIP(ip)) continue;
+
+                    // 如果IP已存在，选择更好的节点信息
+                    if (ipMap.has(ip)) {
+                        const existing = ipMap.get(ip);
+                        // 优先保留有名称的节点
+                        if (!existing.name || existing.name.startsWith('Direct-')) {
+                            ipMap.set(ip, ipData);
+                        }
+                    } else {
+                        ipMap.set(ip, ipData);
+                    }
+                }
+            } catch (error) {
+                console.warn('Failed to process subscription ' + url + ':', error.message);
+            }
+        }
+
+        // 转换为数组并检测纯净度
+        const allNodes = Array.from(ipMap.values());
+        console.log('Total unique IPs found:', allNodes.length);
+
+        // 批量检测IP纯净度
+        const rankedNodes = await batchCheckIPPurity(allNodes, env);
+
+        // 按纯净度排序（纯净的在前，风险评分低的在前）
+        rankedNodes.sort((a, b) => {
+            if (a.isPure !== b.isPure) {
+                return b.isPure ? 1 : -1; // 纯净的在前
+            }
+            return (a.riskScore || 100) - (b.riskScore || 100); // 风险评分低的在前
+        });
+
+        // 返回前100个最佳IP
+        const topNodes = rankedNodes.slice(0, 100);
+        console.log('Selected top nodes:', topNodes.length, 'pure nodes:', topNodes.filter(n => n.isPure).length);
+
+        return topNodes;
+
+    } catch (error) {
+        console.error('Aggregate and rank IPs error:', error);
+        return [];
+    }
+}
+
+// 批量检测IP纯净度
+async function batchCheckIPPurity(nodes, env) {
+    const results = [];
+    const batchSize = 10; // 每批处理10个IP
+
+    for (let i = 0; i < nodes.length; i += batchSize) {
+        const batch = nodes.slice(i, i + batchSize);
+        const batchPromises = batch.map(async (node) => {
+            try {
+                const purityData = await checkSingleIPPurity(node.ip, env);
+                return {
+                    ...node,
+                    ...purityData
+                };
+            } catch (error) {
+                console.warn('Failed to check IP purity for ' + node.ip + ':', error.message);
+                return {
+                    ...node,
+                    isPure: false,
+                    riskScore: 100,
+                    provider: 'unknown'
+                };
+            }
+        });
+
+        const batchResults = await Promise.all(batchPromises);
+        results.push(...batchResults);
+
+        // 添加延迟避免API限制
+        if (i + batchSize < nodes.length) {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+    }
+
+    return results;
+}
+
+// 检测单个IP纯净度
+async function checkSingleIPPurity(ip, env) {
+    // 优先使用ProxyCheck.io
+    if (env.PROXYCHECK_API_KEY) {
+        try {
+            const response = await fetch('https://proxycheck.io/v2/' + ip + '?vpn=1&asn=1&risk=1&time=1&inf=0&key=' + env.PROXYCHECK_API_KEY);
+            const data = await response.json();
+
+            if (data[ip]) {
+                const ipData = data[ip];
+                return {
+                    isPure: ipData.proxy === 'no' && ipData.type !== 'VPN',
+                    riskScore: ipData.risk || 0,
+                    proxyType: ipData.proxy === 'yes' ? ipData.type : 'none',
+                    country: ipData.country,
+                    provider: 'proxycheck.io'
+                };
+            }
+        } catch (error) {
+            console.warn('ProxyCheck.io error for ' + ip + ':', error.message);
+        }
+    }
+
+    // 备用：使用IPinfo.io
+    if (env.IPINFO_TOKEN) {
+        try {
+            const response = await fetch('https://ipinfo.io/' + ip + '/json', {
+                headers: {
+                    'Authorization': 'Bearer ' + env.IPINFO_TOKEN
+                }
+            });
+            const data = await response.json();
+
+            if (data.ip) {
+                return {
+                    isPure: !data.privacy?.hosting && !data.privacy?.vpn && !data.privacy?.proxy,
+                    riskScore: data.privacy?.hosting ? 80 : (data.privacy?.vpn || data.privacy?.proxy ? 60 : 0),
+                    proxyType: data.privacy?.vpn ? 'VPN' : (data.privacy?.proxy ? 'Proxy' : 'none'),
+                    country: data.country,
+                    provider: 'ipinfo.io'
+                };
+            }
+        } catch (error) {
+            console.warn('IPinfo.io error for ' + ip + ':', error.message);
+        }
+    }
+
+    // 最后备用：使用ip-api.com
+    try {
+        const response = await fetch('http://ip-api.com/json/' + ip + '?fields=status,message,country,city,isp,org,proxy,hosting');
+        const data = await response.json();
+
+        if (data.status === 'success') {
+            return {
+                isPure: !data.proxy && !data.hosting,
+                riskScore: data.hosting ? 70 : (data.proxy ? 50 : 0),
+                proxyType: data.proxy ? 'Proxy' : 'none',
+                country: data.country,
+                provider: 'ip-api.com'
+            };
+        }
+    } catch (error) {
+        console.warn('ip-api.com error for ' + ip + ':', error.message);
+    }
+
+    // 如果所有API都失败，返回默认值
+    return {
+        isPure: false,
+        riskScore: 100,
+        proxyType: 'unknown',
+        country: 'Unknown',
+        provider: 'none'
+    };
+}
+
+// 生成优化的Clash配置
+async function generateOptimizedClashConfig(rankedNodes, env) {
+    const pureNodes = rankedNodes.filter(node => node.isPure);
+    const countries = {};
+
+    // 按国家分组
+    pureNodes.forEach(node => {
+        const country = node.country || 'Unknown';
+        if (!countries[country]) {
+            countries[country] = [];
+        }
+        countries[country].push(node);
+    });
+
+    const proxies = [];
+    const proxyGroups = [
+        {
+            name: '🚀 节点选择',
+            type: 'select',
+            proxies: ['♻️ 自动选择', '🔯 故障转移', '🎯 全球直连']
+        },
+        {
+            name: '♻️ 自动选择',
+            type: 'url-test',
+            proxies: [],
+            url: 'http://www.gstatic.com/generate_204',
+            interval: 300,
+            tolerance: 50
+        },
+        {
+            name: '🔯 故障转移',
+            type: 'fallback',
+            proxies: [],
+            url: 'http://www.gstatic.com/generate_204',
+            interval: 300
+        },
+        {
+            name: '🎯 全球直连',
+            type: 'select',
+            proxies: ['DIRECT']
+        }
+    ];
+
+    // 为每个国家创建代理组
+    Object.entries(countries).forEach(function(entry) {
+        const country = entry[0];
+        const nodes = entry[1];
+        if (nodes.length === 0) return;
+
+        const countryFlag = getCountryFlag(country);
+        const groupName = countryFlag + ' ' + country;
+
+        // 添加国家代理组
+        proxyGroups.push({
+            name: groupName,
+            type: 'url-test',
+            proxies: [],
+            url: 'http://www.gstatic.com/generate_204',
+            interval: 300
+        });
+
+        // 添加该国家的节点
+        nodes.slice(0, 10).forEach(function(node, index) { // 每个国家最多10个节点
+            const proxyName = countryFlag + ' ' + country + '-' + (index + 1);
+            const proxyConfig = createOptimizedProxyConfig(node, proxyName);
+
+            if (proxyConfig) {
+                proxies.push(proxyConfig);
+
+                // 添加到国家组
+                const countryGroup = proxyGroups.find(g => g.name === groupName);
+                if (countryGroup) {
+                    countryGroup.proxies.push(proxyName);
+                }
+
+                // 添加到主要代理组
+                if (proxyGroups[1].proxies.length < 50) { // 自动选择组最多50个节点
+                    proxyGroups[1].proxies.push(proxyName);
+                }
+                if (proxyGroups[2].proxies.length < 30) { // 故障转移组最多30个节点
+                    proxyGroups[2].proxies.push(proxyName);
+                }
+            }
+        });
+
+        // 将国家组添加到节点选择
+        proxyGroups[0].proxies.push(groupName);
+    });
+
+    return {
+        port: 7890,
+        'socks-port': 7891,
+        'allow-lan': false,
+        mode: 'Rule',
+        'log-level': 'info',
+        'external-controller': '127.0.0.1:9090',
+
+        dns: {
+            enable: true,
+            listen: '0.0.0.0:53',
+            'default-nameserver': ['223.5.5.5', '119.29.29.29'],
+            nameserver: ['https://doh.pub/dns-query', 'https://dns.alidns.com/dns-query'],
+            'fallback-filter': {
+                geoip: true,
+                'geoip-code': 'CN'
+            }
+        },
+
+        proxies: proxies,
+        'proxy-groups': proxyGroups,
+
+        rules: [
+            'DOMAIN-SUFFIX,googlesyndication.com,REJECT',
+            'DOMAIN-SUFFIX,googleadservices.com,REJECT',
+            'DOMAIN-SUFFIX,doubleclick.net,REJECT',
+            'DOMAIN-SUFFIX,bilibili.com,🎯 全球直连',
+            'DOMAIN-SUFFIX,hdslb.com,🎯 全球直连',
+            'DOMAIN-SUFFIX,youtube.com,🚀 节点选择',
+            'DOMAIN-SUFFIX,netflix.com,🚀 节点选择',
+            'DOMAIN-SUFFIX,twitter.com,🚀 节点选择',
+            'DOMAIN-SUFFIX,facebook.com,🚀 节点选择',
+            'DOMAIN-SUFFIX,instagram.com,🚀 节点选择',
+            'DOMAIN-SUFFIX,telegram.org,🚀 节点选择',
+            'DOMAIN-SUFFIX,local,🎯 全球直连',
+            'IP-CIDR,127.0.0.0/8,🎯 全球直连',
+            'IP-CIDR,172.16.0.0/12,🎯 全球直连',
+            'IP-CIDR,192.168.0.0/16,🎯 全球直连',
+            'IP-CIDR,10.0.0.0/8,🎯 全球直连',
+            'GEOIP,CN,🎯 全球直连',
+            'MATCH,🚀 节点选择'
+        ],
+
+        _meta: {
+            generated_at: new Date().toISOString(),
+            total_nodes: proxies.length,
+            pure_nodes: pureNodes.length,
+            countries: Object.keys(countries).length,
+            source: 'IP Purity Checker - Optimized',
+            description: 'Auto-generated Clash config with top ' + pureNodes.length + ' pure IPs'
+        }
+    };
+}
+
+// 创建优化的代理配置
+function createOptimizedProxyConfig(node, name) {
+    // 根据协议类型创建相应的代理配置
+    const baseConfig = {
+        name: name,
+        server: node.ip,
+        port: node.port || 80
+    };
+
+    switch (node.protocol) {
+        case 'vmess':
+            return {
+                ...baseConfig,
+                type: 'vmess',
+                uuid: node.uuid || '00000000-0000-0000-0000-000000000000',
+                alterId: node.alterId || 0,
+                cipher: node.cipher || 'auto'
+            };
+        case 'vless':
+            return {
+                ...baseConfig,
+                type: 'vless',
+                uuid: node.uuid || '00000000-0000-0000-0000-000000000000'
+            };
+        case 'trojan':
+            return {
+                ...baseConfig,
+                type: 'trojan',
+                password: node.password || 'password'
+            };
+        case 'ss':
+            return {
+                ...baseConfig,
+                type: 'ss',
+                cipher: node.cipher || 'aes-256-gcm',
+                password: node.password || 'password'
+            };
+        default:
+            // 对于未知协议或直接IP，创建HTTP代理
+            return {
+                ...baseConfig,
+                type: 'http'
+            };
+    }
+}
+
+// 获取国家旗帜emoji
+function getCountryFlag(country) {
+    const flags = {
+        'US': '🇺🇸', 'CN': '🇨🇳', 'JP': '🇯🇵', 'KR': '🇰🇷',
+        'SG': '🇸🇬', 'HK': '🇭🇰', 'TW': '🇹🇼', 'GB': '🇬🇧',
+        'DE': '🇩🇪', 'FR': '🇫🇷', 'CA': '🇨🇦', 'AU': '🇦🇺',
+        'RU': '🇷🇺', 'IN': '🇮🇳', 'BR': '🇧🇷', 'NL': '🇳🇱',
+        'IT': '🇮🇹', 'ES': '🇪🇸', 'SE': '🇸🇪', 'NO': '🇳🇴',
+        'FI': '🇫🇮', 'DK': '🇩🇰', 'CH': '🇨🇭', 'AT': '🇦🇹'
+    };
+    return flags[country] || '🌍';
+}
+
+// 验证IP地址格式
+function isValidIP(ip) {
+    const ipRegex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+    return ipRegex.test(ip);
 }
