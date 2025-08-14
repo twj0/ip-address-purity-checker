@@ -175,6 +175,162 @@
             margin: 10px 0;
             font-family: monospace;
         }
+
+        /* 标签页样式 */
+        .tabs {
+            display: flex;
+            border-bottom: 2px solid #e1e5e9;
+            margin-bottom: 0;
+        }
+
+        .tab-btn {
+            background: none;
+            border: none;
+            padding: 12px 24px;
+            cursor: pointer;
+            font-size: 16px;
+            color: #666;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .tab-btn:hover {
+            color: #667eea;
+            background: #f8f9fa;
+        }
+
+        .tab-btn.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+            font-weight: 600;
+        }
+
+        .tab-content {
+            margin-top: 0;
+        }
+
+        /* 文本域样式 */
+        textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: monospace;
+            resize: vertical;
+            transition: border-color 0.3s;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        /* 小文本样式 */
+        small {
+            color: #666;
+            font-size: 12px;
+        }
+
+        small a {
+            color: #667eea;
+            text-decoration: none;
+        }
+
+        small a:hover {
+            text-decoration: underline;
+        }
+
+        /* 复选框样式 */
+        .input-group label input[type="checkbox"] {
+            width: auto;
+            margin-right: 8px;
+        }
+
+        /* 进度条样式 */
+        .progress-container {
+            background: #f0f0f0;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+
+        .progress-bar {
+            height: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            width: 0%;
+            transition: width 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 12px;
+        }
+
+        /* 结果表格样式 */
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        .results-table th,
+        .results-table td {
+            padding: 8px 12px;
+            text-align: left;
+            border-bottom: 1px solid #e1e5e9;
+        }
+
+        .results-table th {
+            background: #f8f9fa;
+            font-weight: 600;
+        }
+
+        .pure-yes {
+            color: #28a745;
+            font-weight: 600;
+        }
+
+        .pure-no {
+            color: #dc3545;
+            font-weight: 600;
+        }
+
+        /* 下载按钮样式 */
+        .download-btn {
+            background: #28a745;
+            margin-left: 10px;
+        }
+
+        .download-btn:hover {
+            background: #218838;
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .tabs {
+                flex-direction: column;
+            }
+
+            .tab-btn {
+                text-align: left;
+                border-bottom: 1px solid #e1e5e9;
+                border-right: none;
+            }
+
+            .tab-btn.active {
+                border-bottom-color: #e1e5e9;
+                border-left: 3px solid #667eea;
+            }
+
+            .container {
+                padding: 10px;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+        }
     </style>
 </head>
 <body>
@@ -184,20 +340,83 @@
             <p>基于IPinfo.io的高精度IP纯净度检测服务</p>
         </div>
         
+        <!-- 导航标签 -->
         <div class="card">
-            <h2>单IP检测</h2>
+            <div class="tabs">
+                <button class="tab-btn active" onclick="switchTab('single')">单IP检测</button>
+                <button class="tab-btn" onclick="switchTab('batch')">批量检测</button>
+                <button class="tab-btn" onclick="switchTab('subscription')">订阅检测</button>
+            </div>
+        </div>
+
+        <!-- 单IP检测 -->
+        <div class="card tab-content" id="single-tab">
+            <h2>🔍 单IP检测</h2>
             <div class="input-group">
                 <label for="ipInput">输入IP地址：</label>
                 <input type="text" id="ipInput" placeholder="例如：8.8.8.8" />
             </div>
+            <div class="input-group">
+                <label for="tokenInput">IPinfo.io Token（可选）：</label>
+                <input type="password" id="tokenInput" placeholder="输入token以提升查询精度和速率限制" />
+                <small>获取免费token：<a href="https://ipinfo.io/signup" target="_blank">https://ipinfo.io/signup</a></small>
+            </div>
             <button class="btn" onclick="checkSingleIP()">检查纯净度</button>
-            
+
             <div class="loading" id="loading">
                 <div class="spinner"></div>
                 <p>正在检查中...</p>
             </div>
-            
+
             <div class="result" id="result"></div>
+        </div>
+
+        <!-- 批量IP检测 -->
+        <div class="card tab-content" id="batch-tab" style="display: none;">
+            <h2>📋 批量IP检测</h2>
+            <div class="input-group">
+                <label for="batchIpInput">输入多个IP地址（每行一个）：</label>
+                <textarea id="batchIpInput" rows="8" placeholder="8.8.8.8&#10;1.1.1.1&#10;114.114.114.114"></textarea>
+            </div>
+            <div class="input-group">
+                <label for="batchTokenInput">IPinfo.io Token（可选）：</label>
+                <input type="password" id="batchTokenInput" placeholder="输入token以提升查询精度和速率限制" />
+            </div>
+            <button class="btn" onclick="checkBatchIPs()">批量检测</button>
+
+            <div class="loading" id="batchLoading">
+                <div class="spinner"></div>
+                <p>正在批量检测中...</p>
+            </div>
+
+            <div class="result" id="batchResult"></div>
+        </div>
+
+        <!-- 订阅检测 -->
+        <div class="card tab-content" id="subscription-tab" style="display: none;">
+            <h2>📡 订阅链接检测</h2>
+            <div class="input-group">
+                <label for="subscriptionInput">输入订阅链接（每行一个）：</label>
+                <textarea id="subscriptionInput" rows="6" placeholder="https://example.com/subscription1&#10;https://example.com/subscription2"></textarea>
+                <small>支持格式：vmess、vless、trojan、ss、ssr、clash yaml等</small>
+            </div>
+            <div class="input-group">
+                <label for="subTokenInput">IPinfo.io Token（可选）：</label>
+                <input type="password" id="subTokenInput" placeholder="输入token以提升查询精度和速率限制" />
+            </div>
+            <div class="input-group">
+                <label>
+                    <input type="checkbox" id="generateClash"> 生成Clash配置文件
+                </label>
+            </div>
+            <button class="btn" onclick="checkSubscriptions()">开始检测</button>
+
+            <div class="loading" id="subLoading">
+                <div class="spinner"></div>
+                <p>正在处理订阅链接...</p>
+            </div>
+
+            <div class="result" id="subResult"></div>
         </div>
         
         <div class="features">
@@ -252,44 +471,324 @@
     </div>
     
     <script>
+        // 标签页切换功能
+        function switchTab(tabName) {
+            // 隐藏所有标签内容
+            const tabContents = document.querySelectorAll('.tab-content');
+            tabContents.forEach(content => content.style.display = 'none');
+
+            // 移除所有标签按钮的active类
+            const tabBtns = document.querySelectorAll('.tab-btn');
+            tabBtns.forEach(btn => btn.classList.remove('active'));
+
+            // 显示选中的标签内容
+            document.getElementById(`${tabName}-tab`).style.display = 'block';
+
+            // 激活选中的标签按钮
+            event.target.classList.add('active');
+        }
+
+        // 单IP检测功能
         async function checkSingleIP() {
             const ipInput = document.getElementById('ipInput');
+            const tokenInput = document.getElementById('tokenInput');
             const loading = document.getElementById('loading');
             const result = document.getElementById('result');
-            const btn = document.querySelector('.btn');
-            
+            const btn = document.querySelector('#single-tab .btn');
+
             const ip = ipInput.value.trim();
             if (!ip) {
-                showResult('请输入有效的IP地址', 'error');
+                showResult('请输入有效的IP地址', 'error', 'result');
                 return;
             }
-            
+
             // 显示加载状态
             loading.style.display = 'block';
             result.style.display = 'none';
             btn.disabled = true;
-            
+
             try {
-                const response = await fetch(`/api/check-ip?ip=${encodeURIComponent(ip)}`);
+                let url = `/api/check-ip?ip=${encodeURIComponent(ip)}`;
+                const headers = {};
+
+                // 如果提供了token，添加到请求头
+                const token = tokenInput.value.trim();
+                if (token) {
+                    headers['X-IPInfo-Token'] = token;
+                }
+
+                const response = await fetch(url, { headers });
                 const data = await response.json();
-                
+
                 if (response.ok) {
-                    displayIPResult(data);
+                    displayIPResult(data, 'result');
                 } else {
-                    showResult(`错误: ${data.error}`, 'error');
+                    showResult(`错误: ${data.error}`, 'error', 'result');
                 }
             } catch (error) {
-                showResult(`网络错误: ${error.message}`, 'error');
+                showResult(`网络错误: ${error.message}`, 'error', 'result');
             } finally {
                 loading.style.display = 'none';
                 btn.disabled = false;
             }
         }
         
-        function displayIPResult(data) {
+        // 批量IP检测功能
+        async function checkBatchIPs() {
+            const batchIpInput = document.getElementById('batchIpInput');
+            const batchTokenInput = document.getElementById('batchTokenInput');
+            const batchLoading = document.getElementById('batchLoading');
+            const batchResult = document.getElementById('batchResult');
+            const btn = document.querySelector('#batch-tab .btn');
+
+            const ipsText = batchIpInput.value.trim();
+            if (!ipsText) {
+                showResult('请输入至少一个IP地址', 'error', 'batchResult');
+                return;
+            }
+
+            const ips = ipsText.split('\n').map(ip => ip.trim()).filter(ip => ip);
+            if (ips.length === 0) {
+                showResult('请输入有效的IP地址', 'error', 'batchResult');
+                return;
+            }
+
+            // 显示加载状态
+            batchLoading.style.display = 'block';
+            batchResult.style.display = 'none';
+            btn.disabled = true;
+
+            const results = [];
+            const token = batchTokenInput.value.trim();
+
+            try {
+                // 创建进度显示
+                const progressHTML = `
+                    <div class="progress-container">
+                        <div class="progress-bar" id="batchProgress">0%</div>
+                    </div>
+                    <p>正在检测 ${ips.length} 个IP地址...</p>
+                `;
+                batchLoading.innerHTML = progressHTML;
+
+                for (let i = 0; i < ips.length; i++) {
+                    const ip = ips[i];
+                    try {
+                        const headers = {};
+                        if (token) {
+                            headers['X-IPInfo-Token'] = token;
+                        }
+
+                        const response = await fetch(`/api/check-ip?ip=${encodeURIComponent(ip)}`, { headers });
+                        const data = await response.json();
+
+                        if (response.ok) {
+                            results.push(data);
+                        } else {
+                            results.push({ ip, error: data.error, isPure: false });
+                        }
+                    } catch (error) {
+                        results.push({ ip, error: error.message, isPure: false });
+                    }
+
+                    // 更新进度
+                    const progress = Math.round(((i + 1) / ips.length) * 100);
+                    const progressBar = document.getElementById('batchProgress');
+                    if (progressBar) {
+                        progressBar.style.width = `${progress}%`;
+                        progressBar.textContent = `${progress}%`;
+                    }
+
+                    // 添加延迟避免过快请求
+                    if (i < ips.length - 1) {
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                    }
+                }
+
+                displayBatchResults(results);
+
+            } catch (error) {
+                showResult(`批量检测错误: ${error.message}`, 'error', 'batchResult');
+            } finally {
+                batchLoading.style.display = 'none';
+                btn.disabled = false;
+            }
+        }
+
+        // 显示批量检测结果
+        function displayBatchResults(results) {
+            const pureCount = results.filter(r => r.isPure).length;
+            const totalCount = results.length;
+            const purityRate = ((pureCount / totalCount) * 100).toFixed(1);
+
+            let tableHTML = `
+                <h3>批量检测完成</h3>
+                <p><strong>总计:</strong> ${totalCount} 个IP | <strong>纯净:</strong> ${pureCount} 个 | <strong>纯净率:</strong> ${purityRate}%</p>
+                <button class="btn download-btn" onclick="downloadCSV()">下载CSV报告</button>
+                <table class="results-table">
+                    <thead>
+                        <tr>
+                            <th>IP地址</th>
+                            <th>纯净度</th>
+                            <th>国家</th>
+                            <th>城市</th>
+                            <th>组织</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            results.forEach(result => {
+                const purityText = result.isPure ? '纯净' : '非纯净';
+                const purityClass = result.isPure ? 'pure-yes' : 'pure-no';
+
+                tableHTML += `
+                    <tr>
+                        <td>${result.ip}</td>
+                        <td class="${purityClass}">${purityText}</td>
+                        <td>${result.country || 'N/A'}</td>
+                        <td>${result.city || 'N/A'}</td>
+                        <td>${result.org || result.error || 'N/A'}</td>
+                    </tr>
+                `;
+            });
+
+            tableHTML += '</tbody></table>';
+
+            // 存储结果供下载使用
+            window.batchResults = results;
+
+            showResult(tableHTML, 'success', 'batchResult');
+        }
+        
+        // 订阅检测功能
+        async function checkSubscriptions() {
+            const subscriptionInput = document.getElementById('subscriptionInput');
+            const subTokenInput = document.getElementById('subTokenInput');
+            const generateClash = document.getElementById('generateClash');
+            const subLoading = document.getElementById('subLoading');
+            const subResult = document.getElementById('subResult');
+            const btn = document.querySelector('#subscription-tab .btn');
+
+            const subscriptionsText = subscriptionInput.value.trim();
+            if (!subscriptionsText) {
+                showResult('请输入至少一个订阅链接', 'error', 'subResult');
+                return;
+            }
+
+            const subscriptions = subscriptionsText.split('\n').map(url => url.trim()).filter(url => url);
+            if (subscriptions.length === 0) {
+                showResult('请输入有效的订阅链接', 'error', 'subResult');
+                return;
+            }
+
+            // 显示加载状态
+            subLoading.style.display = 'block';
+            subResult.style.display = 'none';
+            btn.disabled = true;
+
+            try {
+                const token = subTokenInput.value.trim();
+                const headers = {};
+                if (token) {
+                    headers['X-IPInfo-Token'] = token;
+                }
+
+                // 构建请求参数
+                const params = new URLSearchParams();
+                subscriptions.forEach(url => params.append('urls', url));
+                if (generateClash.checked) {
+                    params.append('generate_clash', 'true');
+                }
+
+                const response = await fetch('/api/check-subscription', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        ...headers
+                    },
+                    body: params
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    displaySubscriptionResults(data);
+                } else {
+                    showResult(`订阅检测错误: ${data.error}`, 'error', 'subResult');
+                }
+
+            } catch (error) {
+                showResult(`网络错误: ${error.message}`, 'error', 'subResult');
+            } finally {
+                subLoading.style.display = 'none';
+                btn.disabled = false;
+            }
+        }
+
+        // 显示订阅检测结果
+        function displaySubscriptionResults(data) {
+            const { total, pure, nonPure, purityRate, results, clashConfig } = data;
+
+            let resultHTML = `
+                <h3>订阅检测完成</h3>
+                <p><strong>总节点数:</strong> ${total} | <strong>纯净节点:</strong> ${pure} | <strong>纯净率:</strong> ${purityRate}%</p>
+                <button class="btn download-btn" onclick="downloadSubscriptionCSV()">下载详细报告</button>
+            `;
+
+            if (clashConfig) {
+                resultHTML += `<button class="btn download-btn" onclick="downloadClashConfig()">下载Clash配置</button>`;
+                window.clashConfig = clashConfig;
+            }
+
+            if (results && results.length > 0) {
+                resultHTML += `
+                    <table class="results-table">
+                        <thead>
+                            <tr>
+                                <th>节点名称</th>
+                                <th>IP地址</th>
+                                <th>纯净度</th>
+                                <th>国家</th>
+                                <th>组织</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+
+                results.slice(0, 50).forEach(result => { // 只显示前50个结果
+                    const purityText = result.isPure ? '纯净' : '非纯净';
+                    const purityClass = result.isPure ? 'pure-yes' : 'pure-no';
+
+                    resultHTML += `
+                        <tr>
+                            <td>${result.name || 'N/A'}</td>
+                            <td>${result.ip}</td>
+                            <td class="${purityClass}">${purityText}</td>
+                            <td>${result.country || 'N/A'}</td>
+                            <td>${result.org || 'N/A'}</td>
+                        </tr>
+                    `;
+                });
+
+                resultHTML += '</tbody></table>';
+
+                if (results.length > 50) {
+                    resultHTML += `<p><small>显示前50个结果，完整结果请下载报告查看</small></p>`;
+                }
+            }
+
+            // 存储结果供下载使用
+            window.subscriptionResults = data;
+
+            showResult(resultHTML, 'success', 'subResult');
+        }
+
+        // 显示IP检测结果
+        function displayIPResult(data, resultId) {
             const purityText = data.isPure ? '✅ 纯净IP' : '❌ 非纯净IP';
             const purityClass = data.isPure ? 'success' : 'warning';
-            
+
             let privacyInfo = '';
             if (data.privacy) {
                 const privacy = data.privacy;
@@ -303,7 +802,7 @@
                     </ul>
                 `;
             }
-            
+
             const resultHTML = `
                 <h3>${purityText}</h3>
                 <p><strong>IP:</strong> ${data.ip}</p>
@@ -312,23 +811,190 @@
                 ${privacyInfo}
                 <p><small>检测时间: ${new Date(data.timestamp).toLocaleString()}</small></p>
             `;
-            
-            showResult(resultHTML, purityClass);
+
+            showResult(resultHTML, purityClass, resultId);
         }
-        
-        function showResult(message, type) {
-            const result = document.getElementById('result');
+
+        // 通用结果显示函数
+        function showResult(message, type, resultId = 'result') {
+            const result = document.getElementById(resultId);
             result.innerHTML = message;
             result.className = `result ${type}`;
             result.style.display = 'block';
         }
-        
-        // 支持回车键检测
-        document.getElementById('ipInput').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                checkSingleIP();
+        // 下载CSV报告功能
+        function downloadCSV() {
+            if (!window.batchResults) {
+                alert('没有可下载的数据');
+                return;
+            }
+
+            const headers = ['IP地址', '纯净度', '国家', '城市', '组织', '检测时间'];
+            const csvContent = [
+                headers.join(','),
+                ...window.batchResults.map(result => [
+                    result.ip,
+                    result.isPure ? '纯净' : '非纯净',
+                    result.country || '',
+                    result.city || '',
+                    `"${(result.org || '').replace(/"/g, '""')}"`,
+                    result.timestamp || new Date().toISOString()
+                ].join(','))
+            ].join('\n');
+
+            downloadFile(csvContent, 'ip-purity-report.csv', 'text/csv');
+        }
+
+        // 下载订阅检测CSV报告
+        function downloadSubscriptionCSV() {
+            if (!window.subscriptionResults) {
+                alert('没有可下载的数据');
+                return;
+            }
+
+            const { results } = window.subscriptionResults;
+            const headers = ['节点名称', 'IP地址', '纯净度', '国家', '城市', '组织', '检测时间'];
+            const csvContent = [
+                headers.join(','),
+                ...results.map(result => [
+                    `"${(result.name || '').replace(/"/g, '""')}"`,
+                    result.ip,
+                    result.isPure ? '纯净' : '非纯净',
+                    result.country || '',
+                    result.city || '',
+                    `"${(result.org || '').replace(/"/g, '""')}"`,
+                    result.timestamp || new Date().toISOString()
+                ].join(','))
+            ].join('\n');
+
+            downloadFile(csvContent, 'subscription-purity-report.csv', 'text/csv');
+        }
+
+        // 下载Clash配置文件
+        function downloadClashConfig() {
+            if (!window.clashConfig) {
+                alert('没有可下载的Clash配置');
+                return;
+            }
+
+            downloadFile(window.clashConfig, 'clash-pure-config.yml', 'text/yaml');
+        }
+
+        // 通用文件下载函数
+        function downloadFile(content, filename, mimeType) {
+            const blob = new Blob([content], { type: mimeType });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        // 键盘事件支持
+        document.addEventListener('DOMContentLoaded', function() {
+            // 单IP检测回车键支持
+            const ipInput = document.getElementById('ipInput');
+            if (ipInput) {
+                ipInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        checkSingleIP();
+                    }
+                });
+            }
+
+            // 批量检测Ctrl+Enter支持
+            const batchIpInput = document.getElementById('batchIpInput');
+            if (batchIpInput) {
+                batchIpInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter' && e.ctrlKey) {
+                        checkBatchIPs();
+                    }
+                });
+            }
+
+            // 订阅检测Ctrl+Enter支持
+            const subscriptionInput = document.getElementById('subscriptionInput');
+            if (subscriptionInput) {
+                subscriptionInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter' && e.ctrlKey) {
+                        checkSubscriptions();
+                    }
+                });
             }
         });
+
+        // 自动保存用户输入的token（仅在当前会话）
+        function saveTokenToSession() {
+            const tokens = [
+                document.getElementById('tokenInput'),
+                document.getElementById('batchTokenInput'),
+                document.getElementById('subTokenInput')
+            ];
+
+            tokens.forEach((input, index) => {
+                if (input && input.value.trim()) {
+                    sessionStorage.setItem(`ipinfo_token_${index}`, input.value.trim());
+                }
+            });
+        }
+
+        // 从会话存储恢复token
+        function restoreTokenFromSession() {
+            const tokens = [
+                document.getElementById('tokenInput'),
+                document.getElementById('batchTokenInput'),
+                document.getElementById('subTokenInput')
+            ];
+
+            tokens.forEach((input, index) => {
+                if (input) {
+                    const savedToken = sessionStorage.getItem(`ipinfo_token_${index}`);
+                    if (savedToken) {
+                        input.value = savedToken;
+                    }
+                }
+            });
+        }
+
+        // 页面加载时恢复token
+        document.addEventListener('DOMContentLoaded', function() {
+            restoreTokenFromSession();
+
+            // 监听token输入变化，自动保存
+            const tokenInputs = [
+                document.getElementById('tokenInput'),
+                document.getElementById('batchTokenInput'),
+                document.getElementById('subTokenInput')
+            ];
+
+            tokenInputs.forEach(input => {
+                if (input) {
+                    input.addEventListener('blur', saveTokenToSession);
+                }
+            });
+        });
+
+        // 示例数据填充功能
+        function fillExampleIPs() {
+            const exampleIPs = [
+                '8.8.8.8',
+                '1.1.1.1',
+                '114.114.114.114',
+                '208.67.222.222'
+            ];
+            document.getElementById('batchIpInput').value = exampleIPs.join('\n');
+        }
+
+        function fillExampleSubscriptions() {
+            const exampleSubs = [
+                'https://raw.githubusercontent.com/mfuu/v2ray/master/v2ray',
+                'https://raw.githubusercontent.com/peasoft/NoMoreWalls/master/list_raw.txt'
+            ];
+            document.getElementById('subscriptionInput').value = exampleSubs.join('\n');
+        }
     </script>
 </body>
 </html>

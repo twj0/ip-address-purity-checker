@@ -13,9 +13,10 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 # 使用简化版本，避免复杂的导入依赖
 import requests
-def fetch_ip_info_ipinfo(ip):
+def fetch_ip_info_ipinfo(ip, token=None):
     """获取IP信息从IPinfo.io"""
-    token = os.environ.get('IPINFO_TOKEN')
+    if not token:
+        token = os.environ.get('IPINFO_TOKEN')
     headers = {'Authorization': f'Bearer {token}'} if token else {}
 
     try:
@@ -80,8 +81,11 @@ class handler(BaseHTTPRequestHandler):
                 self.send_error_response(400, 'IP parameter is required')
                 return
             
+            # 获取自定义token
+            custom_token = self.headers.get('X-IPInfo-Token')
+
             # 获取IP信息
-            ip_info = fetch_ip_info_ipinfo(ip)
+            ip_info = fetch_ip_info_ipinfo(ip, custom_token)
             if not ip_info:
                 self.send_error_response(500, 'Failed to fetch IP information')
                 return
@@ -128,5 +132,5 @@ class handler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header('Access-Control-Allow-Origin', '*')
         self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-        self.send_header('Access-Control-Allow-Headers', 'Content-Type')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type, X-IPInfo-Token')
         self.end_headers()
