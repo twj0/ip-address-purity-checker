@@ -1,21 +1,97 @@
 {
-  "external_controller": "http://127.0.0.1:9090",
-  "secret": "",
-  "select_proxy_group": "GLOBAL",
-  "port_start": 42000,
-  "max_threads": 20,
-  "ip_info": {
-    "primary_provider": "ipinfo",
-    "fallback_provider": "ip-api",
-    "ipinfo": {
-      "base_url": "https://ipinfo.io",
-      "rate_limit_per_minute": 1000,
-      "timeout": 10
-    },
-    "ip_api": {
-      "base_url": "http://ip-api.com",
-      "rate_limit_per_minute": 45,
-      "timeout": 8
+  "project": {
+    "name": "IP地址纯净度检查工具",
+    "version": "3.0.0",
+    "description": "专业的IP纯净度检测服务，基于Cloudflare Pages部署，支持ProxyCheck.io专业检测",
+    "author": "twj0",
+    "license": "MIT",
+    "repository": "https://github.com/twj0/ip-address-purity-checker",
+    "homepage": "https://ip-purity-checker.pages.dev"
+  },
+  "deployment": {
+    "platforms": ["cloudflare-pages"],
+    "primary_platform": "cloudflare-pages",
+    "auto_deploy": true,
+    "auto_update": true,
+    "architecture": {
+      "web_interface": "Cloudflare Pages",
+      "api_functions": "Cloudflare Pages Functions",
+      "scheduled_tasks": "Cloudflare Workers",
+      "storage": "Cloudflare KV"
     }
+  },
+  "api": {
+    "providers": {
+      "proxycheck": {
+        "enabled": true,
+        "priority": 1,
+        "rate_limit": "2/second",
+        "daily_limit": 1000,
+        "features": ["risk_score", "proxy_detection", "vpn_detection"]
+      },
+      "ipinfo": {
+        "enabled": true,
+        "priority": 2,
+        "rate_limit": "1000/minute",
+        "monthly_limit": 50000,
+        "features": ["privacy_data", "geolocation", "asn_info"]
+      },
+      "ip_api": {
+        "enabled": true,
+        "priority": 3,
+        "rate_limit": "45/minute",
+        "features": ["basic_geolocation", "isp_info"]
+      }
+    },
+    "fallback_strategy": "sequential",
+    "timeout": 10000
+  },
+  "features": {
+    "web_interface": true,
+    "batch_processing": true,
+    "subscription_parsing": true,
+    "clash_config_generation": true,
+    "scheduled_checks": true,
+    "auto_update": true,
+    "professional_detection": true,
+    "risk_scoring": true
+  },
+  "cache": {
+    "enabled": true,
+    "provider": "cloudflare-kv",
+    "ttl": {
+      "ip_results": 3600,
+      "subscription_data": 86400,
+      "error_results": 300
+    },
+    "max_size": "1GB"
+  },
+  "scheduled_tasks": {
+    "ip_purity_check": {
+      "enabled": true,
+      "cron": "0 16 * * *",
+      "description": "Daily IP purity check at UTC 16:00 (Beijing 00:00)",
+      "timeout": 300000
+    }
+  },
+  "monitoring": {
+    "enabled": true,
+    "metrics": [
+      "response_time",
+      "success_rate", 
+      "cache_hit_rate",
+      "api_usage"
+    ],
+    "alerts": {
+      "high_error_rate": true,
+      "api_quota_exceeded": true,
+      "deployment_failure": true
+    }
+  },
+  "security": {
+    "api_key_protection": true,
+    "cors_enabled": true,
+    "rate_limiting": true,
+    "input_validation": true
   }
 }

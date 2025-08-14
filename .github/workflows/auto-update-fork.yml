@@ -1,0 +1,272 @@
+name: Auto Update Fork
+
+on:
+  schedule:
+    # 每天UTC 02:00检查更新（北京时间10:00）
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      force_update:
+        description: '强制更新（忽略冲突）'
+        required: false
+        default: 'false'
+        type: boolean
+
+jobs:
+  check-and-update:
+    runs-on: ubuntu-latest
+    if: github.repository != 'twj0/ip-address-purity-checker'  # 只在fork仓库中运行
+    
+    steps:
+      - name: Checkout fork repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Configure Git
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Add upstream remote
+        run: |
+          git remote add upstream https://github.com/twj0/ip-address-purity-checker.git
+          git fetch upstream
+
+      - name: Check for updates
+        id: check_updates
+        run: |
+          # 获取上游最新提交
+          UPSTREAM_COMMIT=$(git rev-parse upstream/main)
+          CURRENT_COMMIT=$(git rev-parse HEAD)
+          
+          echo "upstream_commit=$UPSTREAM_COMMIT" >> $GITHUB_OUTPUT
+          echo "current_commit=$CURRENT_COMMIT" >> $GITHUB_OUTPUT
+          
+          if [ "$UPSTREAM_COMMIT" != "$CURRENT_COMMIT" ]; then
+            echo "has_updates=true" >> $GITHUB_OUTPUT
+            echo "发现上游更新"
+            
+            # 获取更新日志
+            git log --oneline $CURRENT_COMMIT..$UPSTREAM_COMMIT > update_log.txt
+            echo "更新内容:"
+            cat update_log.txt
+          else
+            echo "has_updates=false" >> $GITHUB_OUTPUT
+            echo "没有发现更新"
+          fi
+
+      - name: Backup user configurations
+        if: steps.check_updates.outputs.has_updates == 'true'
+        run: |
+          echo "备份用户配置文件..."
+          mkdir -p backup
+          
+          # 备份可能的用户自定义文件
+          [ -f "config.json" ] && cp config.json backup/ || true
+          [ -f "wrangler.toml" ] && cp wrangler.toml backup/ || true
+          [ -f ".env" ] && cp .env backup/ || true
+          [ -f "proxycheck-api-key.txt" ] && cp proxycheck-api-key.txt backup/ || true
+          [ -f "ipinfo-token.txt" ] && cp ipinfo-token.txt backup/ || true
+          
+          # 备份自定义订阅链接
+          [ -f "汇聚订阅.txt" ] && cp 汇聚订阅.txt backup/ || true
+          
+          echo "备份完成"
+          ls -la backup/ || true
+
+      - name: Merge upstream changes
+        if: steps.check_updates.outputs.has_updates == 'true'
+        run: |
+          echo "合并上游更新..."
+          
+          if [ "${{ github.event.inputs.force_update }}" = "true" ]; then
+            echo "强制更新模式"
+            git reset --hard upstream/main
+          else
+            # 尝试智能合并
+            if git merge upstream/main --no-edit; then
+              echo "自动合并成功"
+            else
+              echo "合并冲突，尝试解决..."
+              
+              # 对于特定文件，优先保留用户版本
+              USER_PRIORITY_FILES=(
+                "config.json"
+                "wrangler.toml"
+                ".env"
+                "proxycheck-api-key.txt"
+                "ipinfo-token.txt"
+                "汇聚订阅.txt"
+              )
+              
+              for file in "${USER_PRIORITY_FILES[@]}"; do
+                if git status --porcelain | grep -q "^UU $file"; then
+                  echo "保留用户版本: $file"
+                  git checkout --ours "$file"
+                  git add "$file"
+                fi
+              done
+              
+              # 对于代码文件，优先使用上游版本
+              CODE_FILES=$(git status --porcelain | grep "^UU" | grep -E "\.(js|py|html|css|md)$" | awk '{print $2}')
+              for file in $CODE_FILES; do
+                echo "使用上游版本: $file"
+                git checkout --theirs "$file"
+                git add "$file"
+              done
+              
+              # 完成合并
+              git commit --no-edit || true
+            fi
+          fi
+
+      - name: Restore user configurations
+        if: steps.check_updates.outputs.has_updates == 'true'
+        run: |
+          echo "恢复用户配置..."
+          
+          # 恢复用户配置文件（如果备份存在且当前文件被覆盖）
+          if [ -f "backup/config.json" ] && [ -f "config.json" ]; then
+            # 检查是否需要合并配置
+            if ! cmp -s backup/config.json config.json; then
+              echo "检测到config.json变化，保留用户配置"
+              cp backup/config.json config.json
+            fi
+          fi
+          
+          # 恢复wrangler.toml中的KV命名空间ID
+          if [ -f "backup/wrangler.toml" ]; then
+            # 提取用户的KV命名空间ID
+            USER_KV_ID=$(grep 'id = "' backup/wrangler.toml | head -1 | sed 's/.*id = "\([^"]*\)".*/\1/')
+            USER_PREVIEW_ID=$(grep 'preview_id = "' backup/wrangler.toml | head -1 | sed 's/.*preview_id = "\([^"]*\)".*/\1/')
+            
+            if [ -n "$USER_KV_ID" ] && [ "$USER_KV_ID" != "" ]; then
+              echo "恢复KV命名空间ID: $USER_KV_ID"
+              sed -i "s/id = \"\"/id = \"$USER_KV_ID\"/" wrangler.toml
+            fi
+            
+            if [ -n "$USER_PREVIEW_ID" ] && [ "$USER_PREVIEW_ID" != "" ]; then
+              echo "恢复预览KV命名空间ID: $USER_PREVIEW_ID"
+              sed -i "s/preview_id = \"\"/preview_id = \"$USER_PREVIEW_ID\"/" wrangler.toml
+            fi
+          fi
+          
+          # 恢复API密钥文件
+          [ -f "backup/proxycheck-api-key.txt" ] && cp backup/proxycheck-api-key.txt . || true
+          [ -f "backup/ipinfo-token.txt" ] && cp backup/ipinfo-token.txt . || true
+          [ -f "backup/.env" ] && cp backup/.env . || true
+          
+          # 恢复自定义订阅
+          [ -f "backup/汇聚订阅.txt" ] && cp backup/汇聚订阅.txt . || true
+          
+          echo "配置恢复完成"
+
+      - name: Commit and push changes
+        if: steps.check_updates.outputs.has_updates == 'true'
+        run: |
+          # 检查是否有变化需要提交
+          if git diff --staged --quiet && git diff --quiet; then
+            echo "没有需要提交的变化"
+          else
+            echo "提交更新..."
+            git add -A
+            
+            # 创建更新提交信息
+            COMMIT_MSG="🔄 Auto-update from upstream
+
+Merged changes from twj0/ip-address-purity-checker
+Upstream commit: ${{ steps.check_updates.outputs.upstream_commit }}
+
+Changes:
+$(cat update_log.txt || echo 'See git log for details')
+
+User configurations preserved:
+- KV namespace IDs
+- API keys and tokens  
+- Custom subscription URLs
+- Personal settings"
+            
+            git commit -m "$COMMIT_MSG" || true
+            git push origin main
+            
+            echo "更新推送完成"
+          fi
+
+      - name: Create update summary
+        if: steps.check_updates.outputs.has_updates == 'true'
+        run: |
+          echo "## 🔄 自动更新完成" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**上游仓库:** twj0/ip-address-purity-checker" >> $GITHUB_STEP_SUMMARY
+          echo "**更新时间:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+          echo "**上游提交:** ${{ steps.check_updates.outputs.upstream_commit }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📝 更新内容" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          cat update_log.txt >> $GITHUB_STEP_SUMMARY || echo "无法读取更新日志" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### ✅ 保留的用户配置" >> $GITHUB_STEP_SUMMARY
+          echo "- KV命名空间ID和配置" >> $GITHUB_STEP_SUMMARY
+          echo "- API密钥和访问令牌" >> $GITHUB_STEP_SUMMARY
+          echo "- 自定义订阅链接" >> $GITHUB_STEP_SUMMARY
+          echo "- 个人设置和环境变量" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🚀 下一步" >> $GITHUB_STEP_SUMMARY
+          echo "如果您使用Cloudflare部署，建议运行以下命令更新部署：" >> $GITHUB_STEP_SUMMARY
+          echo '```bash' >> $GITHUB_STEP_SUMMARY
+          echo 'wrangler deploy  # 更新Worker' >> $GITHUB_STEP_SUMMARY
+          echo 'wrangler pages deploy public --project-name ip-purity-checker  # 更新Pages' >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: No updates found
+        if: steps.check_updates.outputs.has_updates == 'false'
+        run: |
+          echo "## ✅ 已是最新版本" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "您的fork仓库已经是最新版本，无需更新。" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**检查时间:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+          echo "**当前提交:** ${{ steps.check_updates.outputs.current_commit }}" >> $GITHUB_STEP_SUMMARY
+
+  # 可选：自动重新部署到Cloudflare（如果配置了secrets）
+  auto-redeploy:
+    needs: check-and-update
+    runs-on: ubuntu-latest
+    if: needs.check-and-update.outputs.has_updates == 'true' && (secrets.CLOUDFLARE_API_TOKEN != '' || secrets.CF_API_TOKEN != '')
+    
+    steps:
+      - name: Checkout updated repository
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install Wrangler
+        run: npm install -g wrangler
+
+      - name: Deploy to Cloudflare
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN || secrets.CF_API_TOKEN }}
+        run: |
+          echo "自动重新部署到Cloudflare..."
+          
+          # 部署Worker
+          if wrangler deploy; then
+            echo "✅ Worker部署成功"
+          else
+            echo "❌ Worker部署失败"
+          fi
+          
+          # 部署Pages
+          if wrangler pages deploy public --project-name ip-purity-checker; then
+            echo "✅ Pages部署成功"
+          else
+            echo "❌ Pages部署失败"
+          fi

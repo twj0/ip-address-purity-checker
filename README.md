@@ -1,16 +1,10 @@
-# IP地址纯净度检查工具
+# 🔍 IP地址纯净度检查工具
 
-[![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org/)
-[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![GitHub Actions](https://img.shields.io/badge/GitHub%20Actions-enabled-brightgreen.svg)](https://github.com/features/actions)
-[![Cloudflare Workers](https://img.shields.io/badge/Cloudflare%20Workers-supported-orange.svg)](https://workers.cloudflare.com/)
-[![Vercel](https://img.shields.io/badge/Vercel-deployable-black.svg)](https://vercel.com/)
+专业的IP纯净度检测服务，基于Cloudflare Pages部署，支持ProxyCheck.io专业检测算法。
 
-一个强大的工具，用于检测代理节点IP地址的纯净度，自动筛选出非数据中心/代理/VPN的纯净IP地址，并生成优化的Clash配置文件。
+[![Deploy to Cloudflare Pages](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/twj0/ip-address-purity-checker)
 
-[English](README-en.md) | 中文
-
-## ✨ 主要功能
+## ✨ 主要特性
 
 - 🔍 **专业代理检测**: 集成ProxyCheck.io专业代理检测API，提供0-100风险评分
 - 📊 **多数据源保障**: ProxyCheck.io + IPinfo.io + ip-api.com 三重检测机制
@@ -18,445 +12,270 @@
 - 🎯 **智能纯净度筛选**: 专业算法识别数据中心、VPN、代理服务器IP
 - ⚡ **Clash配置生成**: 自动生成按国家和纯净度分组的Clash配置
 - 🌐 **Web界面**: 响应式设计，支持桌面和移动设备
-- 🤖 **自动化检查**: 支持GitHub Actions定时检查
-- ☁️ **多平台部署**: 支持Vercel、Cloudflare Workers等平台
-- 📊 **详细报告**: 生成包含风险评分和纯净度的CSV报告
+- ⏰ **定时任务**: Cloudflare Workers每日自动检测
+- ☁️ **全球加速**: 基于Cloudflare边缘网络，毫秒级响应
+- 🔄 **自动更新**: Fork仓库自动同步上游更新
 
-## 📋 目录
+## 🚀 一键部署
 
-- [快速开始](#-快速开始)
-- [安装](#-安装)
-- [配置](#-配置)
-- [使用方法](#-使用方法)
-- [API配置](#-api配置)
-- [部署选项](#-部署选项)
-- [项目结构](#-项目结构)
-- [故障排除](#-故障排除)
-- [常见问题](#-常见问题)
-- [贡献指南](#-贡献指南)
+### 方法一：一键部署按钮
 
-## 🚀 快速开始
+点击下面的按钮直接部署到您的Cloudflare账户：
 
-想要立即体验？按照以下步骤快速开始：
+[![Deploy to Cloudflare Pages](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/twj0/ip-address-purity-checker)
 
-```bash
-# 1. 克隆项目
-git clone https://github.com/twj0/ip-address-purity-checker.git
-cd ip-address-purity-checker
+### 方法二：Fork + 自动部署
 
-# 2. 安装依赖
-pip install -r requirements.txt
+1. **Fork本仓库**
+   ```
+   点击右上角的 "Fork" 按钮
+   ```
 
-# 3. 环境检查
-python scripts/check_environment.py
+2. **克隆您的Fork**
+   ```bash
+   git clone https://github.com/YOUR_USERNAME/ip-address-purity-checker.git
+   cd ip-address-purity-checker
+   ```
 
-# 4. 小批量测试（推荐首次使用）
-python scripts/test_small_batch.py
+3. **运行一键部署脚本**
+   ```bash
+   chmod +x scripts/deploy-cloudflare.sh
+   ./scripts/deploy-cloudflare.sh
+   ```
 
-# 5. 运行完整检查（需要IPinfo.io token以获得最佳效果）
-export IPINFO_TOKEN="your_token_here"  # 可选但推荐
-python scripts/run_purity_check.py
-```
+4. **配置API密钥（推荐）**
+   - ProxyCheck.io API Key: [免费注册](https://proxycheck.io/api/) (1000次/天)
+   - IPinfo.io Token: [免费注册](https://ipinfo.io/signup) (50000次/月)
 
-**⚡ 一分钟体验版：**
-```bash
-# 仅测试基本功能，无需token
-python scripts/test_small_batch.py
-```
+## 🎯 部署后功能
 
-**🎯 生产环境版：**
-```bash
-# 获取IPinfo.io免费token: https://ipinfo.io/signup
-export IPINFO_TOKEN="your_token_here"
-python scripts/dedup_purity_to_yaml.py
-```
+部署完成后，您将获得两个服务：
 
-## 🚀 安装
+### 🌐 Web界面 (Cloudflare Pages)
+- **访问地址**: `https://ip-purity-checker.pages.dev`
+- **功能**:
+  - 单IP检测：输入IP地址获得详细检测结果
+  - 批量检测：同时检测多个IP地址
+  - 订阅检测：解析代理订阅并检测所有节点
+  - Clash配置生成：自动生成纯净节点配置
 
-### 环境要求
+### ⏰ 定时任务 (Cloudflare Workers)
+- **访问地址**: `https://ip-purity-checker.YOUR_ACCOUNT.workers.dev`
+- **功能**:
+  - 每日UTC 16:00（北京时间00:00）自动执行
+  - 检查所有配置的订阅链接
+  - 结果保存到KV存储，保留7天
+  - 支持手动触发检测
 
-- Python 3.8+
-- pip包管理器
+## 🔧 配置说明
 
-### 快速安装
+### API密钥配置
 
-```bash
-# 克隆项目
-git clone https://github.com/twj0/ip-address-purity-checker.git
-cd ip-address-purity-checker
+#### ProxyCheck.io API Key（推荐）
+- **获取方式**: [https://proxycheck.io/api/](https://proxycheck.io/api/)
+- **免费额度**: 1000次/天
+- **优势**: 专业代理检测，0-100风险评分
+- **配置方式**: 
+  - Web界面输入
+  - 环境变量: `PROXYCHECK_API_KEY`
+  - 部署时自动配置
 
-# 安装依赖
-pip install -r requirements.txt
+#### IPinfo.io Token（备用）
+- **获取方式**: [https://ipinfo.io/signup](https://ipinfo.io/signup)
+- **免费额度**: 50000次/月
+- **优势**: 隐私标签，地理位置信息
+- **配置方式**:
+  - Web界面输入
+  - 环境变量: `IPINFO_TOKEN`
+  - 部署时自动配置
 
-# 环境检查
-python scripts/check_environment.py
-```
+### 自定义订阅链接
 
-### 依赖包
-
-```
-requests>=2.28.0
-lxml>=4.9.0
-PyYAML>=6.0
-tqdm>=4.64.0
-ipinfo>=4.4.0
-```
-
-## ⚙️ 配置
-
-### 1. 订阅链接配置
-
-创建或编辑 `汇聚订阅.txt` 文件，每行一个订阅链接：
-
-```
-https://example.com/subscription1
-https://example.com/subscription2
-# 这是注释行，会被忽略
-```
-
-### 2. 配置文件
-
-`config.json` 包含所有配置选项：
-
-```json
-{
-  "external_controller": "http://127.0.0.1:9090",
-  "secret": "",
-  "select_proxy_group": "GLOBAL",
-  "port_start": 42000,
-  "max_threads": 20,
-  "ip_info": {
-    "primary_provider": "ipinfo",
-    "fallback_provider": "ip-api",
-    "max_concurrent_requests": 10,
-    "ipinfo": {
-      "base_url": "https://ipinfo.io",
-      "rate_limit_per_minute": 1000,
-      "timeout": 10,
-      "max_retries": 2,
-      "retry_delay": 1.0
-    },
-    "ip_api": {
-      "base_url": "http://ip-api.com",
-      "rate_limit_per_minute": 45,
-      "timeout": 8,
-      "max_retries": 2,
-      "retry_delay": 1.5
-    }
-  }
-}
-```
-
-## 🔑 API配置
-
-### IPinfo.io Token（强烈推荐）
-
-获取免费的IPinfo.io API token可以大幅提升性能：
-
-1. 访问 [IPinfo.io](https://ipinfo.io/signup) 注册账户
-2. 获取API token（免费账户每月50,000次请求）
-3. 配置token：
-
-**方法1：环境变量**
-```bash
-export IPINFO_TOKEN="your_token_here"
-```
-
-**方法2：文件配置**
-```bash
-echo "your_token_here" > ipinfo-token.txt
-```
-
-**方法3：GitHub Secrets（用于Actions）**
-在GitHub仓库设置中添加 `IPINFO_TOKEN` secret。
-
-### 性能对比
-
-| 配置 | 速率限制 | 并发数 | 准确性 |
-|------|----------|--------|--------|
-| 无Token | 45次/分钟 | 2-5 | 基础 |
-| 有Token | 1000次/分钟 | 10-20 | 增强 |
-
-## 📖 使用方法
-
-### 基本使用
+可以通过环境变量 `SUBSCRIPTION_URLS` 配置自定义订阅链接：
 
 ```bash
-# 环境检查
-python scripts/check_environment.py
-
-# 小批量测试
-python scripts/test_small_batch.py
-
-# 运行IP纯净度检查
-python scripts/run_purity_check.py
-
-# 生成去重的Clash配置
-python scripts/dedup_purity_to_yaml.py
+# JSON格式的订阅链接数组
+export SUBSCRIPTION_URLS='[
+  "https://example.com/subscription1",
+  "https://example.com/subscription2"
+]'
 ```
 
-### 输出文件
+## 🔄 自动更新功能
 
-- `subscription_ip_report.csv`: 详细的IP检查报告
-- `dedup_purity_clash.yml`: 优化的Clash配置文件
+Fork仓库后，您的项目会自动获得以下更新功能：
 
-### 高级用法
+### GitHub Actions自动同步
+- **触发时机**: 每日UTC 02:00（北京时间10:00）
+- **更新内容**: 自动同步上游仓库的最新代码
+- **配置保护**: 自动保留您的个人配置
+  - KV命名空间ID
+  - API密钥和Token
+  - 自定义订阅链接
+  - 个人设置
 
+### 手动触发更新
 ```bash
-# 批量处理脚本
-python scripts/ipinfo_batch_processor.py
-
-# 生成排序配置
-python scripts/generate_sorted_config.py
-
-# 调试模式运行
-PYTHONPATH=. python -c "
-import logging
-logging.basicConfig(level=logging.DEBUG)
-from scripts.run_purity_check import main
-main()
-"
+# 在您的仓库页面，进入 Actions 标签页
+# 选择 "Auto Update Fork" 工作流
+# 点击 "Run workflow" 手动触发
 ```
 
-### 输出示例
+## 📊 使用指南
 
-**CSV报告格式：**
-```csv
-host,ip,pure,country,regionName,city,isp,org,as
-example.com,1.2.3.4,yes,United States,California,Los Angeles,ISP Name,Organization,AS12345
-```
+### Web界面使用
 
-**Clash配置结构：**
-```yaml
-proxies:
-  - name: "节点名称"
-    type: vmess
-    server: 1.2.3.4
-    port: 443
-    # ... 其他配置
+1. **访问Web界面**
+   ```
+   https://ip-purity-checker.pages.dev
+   ```
 
-proxy-groups:
-  - name: "✈️ PROXY"
-    type: select
-    proxies: ["⚡ URL-TEST", "✅ PURE", "AUTO-US"]
+2. **单IP检测**
+   - 输入IP地址
+   - 可选输入API密钥提升检测精度
+   - 查看详细检测结果和风险评分
 
-  - name: "⚡ URL-TEST"
-    type: url-test
-    proxies: ["纯净节点1", "纯净节点2"]
+3. **批量检测**
+   - 每行输入一个IP地址
+   - 支持数百个IP同时检测
+   - 下载CSV格式检测报告
 
-  - name: "✅ PURE"
-    type: select
-    proxies: ["所有纯净节点"]
-```
+4. **订阅检测**
+   - 输入订阅链接（支持多个）
+   - 自动解析所有节点IP
+   - 可选生成纯净节点Clash配置
 
-## 🌐 部署选项
+### API使用
 
-### GitHub Actions
-
-项目包含预配置的GitHub Actions工作流：
-
-```yaml
-# .github/workflows/ipinfo-purity-check.yml
-name: IPinfo.io IP Purity Check
-on:
-  schedule:
-    - cron: '0 16 * * *'  # 每天UTC 16:00运行
-  workflow_dispatch:
-```
-
-配置步骤：
-1. Fork此仓库
-2. 在Settings > Secrets中添加 `IPINFO_TOKEN`
-3. 启用Actions
-4. 查看Artifacts获取结果
-
-### Cloudflare Workers
-
+#### 检测单个IP
 ```bash
-# 安装Wrangler CLI
-npm install -g wrangler
-
-# 登录Cloudflare
-wrangler login
-
-# 部署Worker
-wrangler deploy
+curl "https://ip-purity-checker.pages.dev/api/check-ip?ip=8.8.8.8" \
+  -H "X-ProxyCheck-Key: YOUR_API_KEY"
 ```
 
-### Vercel部署
-
+#### 检测订阅链接
 ```bash
-# 安装Vercel CLI
-npm install -g vercel
-
-# 部署到Vercel
-vercel --prod
+curl -X POST "https://ip-purity-checker.pages.dev/api/check-subscription" \
+  -H "X-ProxyCheck-Key: YOUR_API_KEY" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "urls=https://example.com/subscription"
 ```
 
-或者点击一键部署：
+### 定时任务管理
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/twj0/ip-address-purity-checker)
-
-## 📁 项目结构
-
-```
-ip-address-purity-checker/
-├── src/
-│   └── ip_checker/
-│       ├── __init__.py
-│       ├── config.py          # 配置管理
-│       ├── ip_utils.py        # IP检查核心逻辑
-│       ├── ipinfo_provider.py # IPinfo.io API封装
-│       ├── subscription.py    # 订阅解析
-│       └── clash.py          # Clash配置生成
-├── scripts/
-│   ├── run_purity_check.py   # 主检查脚本
-│   ├── dedup_purity_to_yaml.py # 配置生成脚本
-│   ├── check_environment.py  # 环境检查
-│   └── test_*.py             # 测试脚本
-├── api/
-│   ├── check-ip.py           # Vercel API端点
-│   └── scheduled-check.py    # 定时检查API
-├── cloudflare/
-│   └── worker.js             # Cloudflare Worker
-├── .github/workflows/        # GitHub Actions
-├── config.json              # 主配置文件
-├── requirements.txt          # Python依赖
-├── wrangler.toml            # Cloudflare配置
-├── vercel.json              # Vercel配置
-└── 汇聚订阅.txt              # 订阅链接文件
-```
-
-## ❓ 常见问题
-
-### Q: 遇到429错误（速率限制）怎么办？
-
-A: 这是API速率限制导致的，解决方案：
-1. 获取IPinfo.io token（推荐）
-2. 降低并发数
-3. 增加请求间隔
-
-### Q: 为什么有些IP检测失败？
-
-A: 可能的原因：
-- 网络连接问题
-- API服务暂时不可用
-- IP地址无效或私有地址
-
-### Q: 如何提高检测准确性？
-
-A: 建议：
-1. 使用IPinfo.io付费token获得隐私数据
-2. 定期更新黑名单关键词
-3. 结合多个数据源进行验证
-
-### Q: 支持哪些代理协议？
-
-A: 支持主流协议：
-- VMess
-- VLESS
-- Trojan
-- Shadowsocks (SS)
-- ShadowsocksR (SSR)
-- Clash YAML格式
-
-### Q: 如何优化大批量处理性能？
-
-A: 性能优化建议：
-1. **获取IPinfo.io付费token**: 提升速率限制到50,000次/月
-2. **调整并发数**: 根据网络环境调整 `max_concurrent_requests`
-3. **分批处理**: 将大量IP分成小批次处理
-4. **缓存结果**: 避免重复查询相同IP
-5. **使用代理**: 在网络受限环境下使用代理
-
-### Q: 纯净度判定标准是什么？
-
-A: 判定标准包括：
-1. **IPinfo.io隐私数据**: hosting、vpn、proxy、tor字段
-2. **关键词匹配**: ISP/组织名称中的数据中心关键词
-3. **黑名单**: 已知的云服务商和CDN提供商
-
-**黑名单关键词示例：**
-```
-alibaba, aws, google, microsoft, azure, cloudflare,
-akamai, ovh, hetzner, digitalocean, vultr, linode
-```
-
-### Q: 如何自定义纯净度规则？
-
-A: 可以通过修改 `src/ip_checker/ip_utils.py` 中的 `is_pure_ip` 函数：
-
-```python
-def is_pure_ip(ip_info: Optional[Dict]) -> bool:
-    # 添加自定义规则
-    custom_blacklist = ["your_custom_keyword"]
-
-    # 现有逻辑...
-    for kw in custom_blacklist:
-        if kw in text.lower():
-            return False
-
-    return True
-```
-
-## 🔧 故障排除
-
-### 常见错误及解决方案
-
-**1. 连接超时错误**
-```
-requests.exceptions.ConnectTimeout: HTTPSConnectionPool(host='ipinfo.io', port=443)
-```
-解决方案：
-- 检查网络连接
-- 配置代理设置
-- 增加超时时间
-
-**2. 速率限制错误**
-```
-HTTP 429: Too Many Requests
-```
-解决方案：
-- 获取IPinfo.io token
-- 降低并发数
-- 增加请求间隔
-
-**3. 模块导入错误**
-```
-ModuleNotFoundError: No module named 'src'
-```
-解决方案：
+#### 查看任务状态
 ```bash
-export PYTHONPATH="${PYTHONPATH}:$(pwd)"
-# 或者
-python -m scripts.run_purity_check
+curl "https://ip-purity-checker.YOUR_ACCOUNT.workers.dev/api/status"
 ```
 
-### 性能监控
-
-**监控脚本示例：**
+#### 手动触发检测
 ```bash
-#!/bin/bash
-# monitor_performance.sh
-
-echo "开始性能监控..."
-start_time=$(date +%s)
-
-python scripts/run_purity_check.py 2>&1 | tee performance.log
-
-end_time=$(date +%s)
-duration=$((end_time - start_time))
-
-echo "执行时间: ${duration}秒"
-echo "成功率: $(grep -c "成功" performance.log)"
-echo "失败率: $(grep -c "失败" performance.log)"
+curl -X POST "https://ip-purity-checker.YOUR_ACCOUNT.workers.dev/api/manual-check"
 ```
 
-**日志分析：**
+## 🛠️ 高级配置
+
+### 自定义KV命名空间
+
+如果您已有KV命名空间，可以在 `wrangler.toml` 中配置：
+
+```toml
+[[kv_namespaces]]
+binding = "IP_CACHE"
+id = "your-existing-kv-id"
+preview_id = "your-preview-kv-id"
+```
+
+### 修改定时任务时间
+
+在 `wrangler.toml` 中修改cron表达式：
+
+```toml
+[[triggers]]
+crons = ["0 8 * * *"]  # 改为UTC 08:00执行
+```
+
+### 环境变量配置
+
+支持的环境变量：
+
+- `PROXYCHECK_API_KEY`: ProxyCheck.io API密钥
+- `IPINFO_TOKEN`: IPinfo.io访问令牌
+- `SUBSCRIPTION_URLS`: 自定义订阅链接（JSON数组）
+- `ENVIRONMENT`: 环境标识（production/development）
+
+## 🐛 故障排除
+
+### 常见问题
+
+#### 1. 部署失败：KV命名空间错误
 ```bash
-# 查看错误统计
-grep "ERROR" logs/*.log | cut -d: -f3 | sort | uniq -c
+# 手动创建KV命名空间
+wrangler kv:namespace create "IP_CACHE"
+wrangler kv:namespace create "IP_CACHE" --preview
 
-# 查看API响应时间
-grep "response_time" logs/*.log | awk '{sum+=$NF; count++} END {print "平均响应时间:", sum/count, "ms"}'
+# 更新wrangler.toml中的ID
 ```
+
+#### 2. API检测失败
+- 检查API密钥是否正确配置
+- 确认网络连接正常
+- 查看浏览器控制台错误信息
+
+#### 3. 定时任务不执行
+- 检查Worker部署状态
+- 确认cron触发器配置正确
+- 查看Worker日志
+
+### 调试方法
+
+#### 查看Worker日志
+```bash
+wrangler tail
+```
+
+#### 测试本地开发
+```bash
+wrangler dev
+```
+
+#### 检查KV存储
+```bash
+wrangler kv:key list --binding IP_CACHE
+```
+
+## 📈 性能优化
+
+### 速率限制管理
+- ProxyCheck.io: 免费2次/秒，付费10次/秒
+- IPinfo.io: 免费1000次/分钟，付费更高
+- 自动智能速率控制，避免触发限制
+
+### 缓存策略
+- IP检测结果缓存1小时
+- 订阅解析结果缓存24小时
+- KV存储自动过期清理
+
+## 🤝 贡献指南
+
+欢迎提交Issue和Pull Request！
+
+1. Fork本仓库
+2. 创建功能分支
+3. 提交更改
+4. 发起Pull Request
+
+## 📄 许可证
+
+MIT License - 详见 [LICENSE](LICENSE) 文件
+
+## 🔗 相关链接
+
+- [ProxyCheck.io API文档](https://proxycheck.io/api/)
+- [IPinfo.io API文档](https://ipinfo.io/developers)
+- [Cloudflare Pages文档](https://developers.cloudflare.com/pages/)
+- [Cloudflare Workers文档](https://developers.cloudflare.com/workers/)
+
+---
+
+🎉 **立即部署，享受专业级IP纯净度检测服务！**
