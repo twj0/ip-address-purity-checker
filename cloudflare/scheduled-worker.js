@@ -802,54 +802,95 @@ function getConsolidatedHomePage() {
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #ffffff;
             min-height: 100vh;
             padding: 20px;
+            color: #333;
+            line-height: 1.6;
         }
 
         .container {
             max-width: 1200px;
             margin: 0 auto;
             background: white;
-            border-radius: 15px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            border: 1px solid #e0e0e0;
             overflow: hidden;
         }
 
         .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
+            background: #f8f9fa;
+            color: #2c3e50;
             padding: 30px;
             text-align: center;
+            border-bottom: 1px solid #e0e0e0;
         }
 
         .header h1 {
-            font-size: 2.5em;
+            font-size: 2.5rem;
             margin-bottom: 10px;
+            font-weight: 700;
         }
 
         .header p {
-            opacity: 0.9;
-            font-size: 1.1em;
+            font-size: 1.1rem;
+            color: #6c757d;
         }
 
-        .main-content {
+        .tabs {
+            display: flex;
+            background: #ffffff;
+            border-bottom: 1px solid #dee2e6;
+            overflow-x: auto;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 15px 20px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            color: #6c757d;
+            transition: all 0.3s ease;
+            white-space: nowrap;
+            min-width: 120px;
+        }
+
+        .tab:hover {
+            background: #f8f9fa;
+            color: #495057;
+        }
+
+        .tab.active {
+            background: #007bff;
+            color: white;
+        }
+
+        .tab-content {
+            display: none;
             padding: 30px;
         }
 
+        .tab-content.active {
+            display: block;
+        }
+
         .section {
-            margin-bottom: 40px;
+            margin-bottom: 30px;
             padding: 25px;
             border: 1px solid #e1e5e9;
-            border-radius: 10px;
+            border-radius: 8px;
             background: #f8f9fa;
         }
 
-        .section h2 {
-            color: #333;
+        .section h3 {
+            color: #2c3e50;
             margin-bottom: 20px;
-            font-size: 1.5em;
-            border-bottom: 2px solid #667eea;
+            font-size: 1.3rem;
+            border-bottom: 2px solid #007bff;
             padding-bottom: 10px;
         }
 
@@ -864,78 +905,62 @@ function getConsolidatedHomePage() {
             color: #555;
         }
 
-        .form-group input, .form-group textarea {
+        .form-group input,
+        .form-group textarea {
             width: 100%;
             padding: 12px;
-            border: 2px solid #ddd;
-            border-radius: 8px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
             font-size: 14px;
-            transition: border-color 0.3s;
+            transition: border-color 0.3s ease;
         }
 
-        .form-group input:focus, .form-group textarea:focus {
+        .form-group input:focus,
+        .form-group textarea:focus {
             outline: none;
-            border-color: #667eea;
+            border-color: #007bff;
+            box-shadow: 0 0 0 2px rgba(0,123,255,0.25);
         }
 
         .btn {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #007bff;
             color: white;
             border: none;
             padding: 12px 24px;
-            border-radius: 8px;
+            border-radius: 6px;
             cursor: pointer;
             font-size: 14px;
-            font-weight: 600;
-            transition: transform 0.2s, box-shadow 0.2s;
+            font-weight: 500;
+            transition: all 0.3s ease;
             margin-right: 10px;
             margin-bottom: 10px;
         }
 
         .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+            background: #0056b3;
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+        }
+
+        .btn-secondary:hover {
+            background: #545b62;
         }
 
         .btn-danger {
-            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+            background: #dc3545;
         }
 
-        .btn-success {
-            background: linear-gradient(135deg, #51cf66 0%, #40c057 100%);
+        .btn-danger:hover {
+            background: #c82333;
         }
-
-        .result {
-            background: #f1f3f4;
-            border: 1px solid #dee2e6;
-            padding: 15px;
-            margin: 15px 0;
-            border-radius: 8px;
-            font-family: 'Courier New', monospace;
-            font-size: 12px;
-            white-space: pre-wrap;
-            max-height: 400px;
-            overflow-y: auto;
-            display: none;
-        }
-
-        .status-indicator {
-            display: inline-block;
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            margin-right: 8px;
-        }
-
-        .status-success { background: #51cf66; }
-        .status-error { background: #ff6b6b; }
-        .status-warning { background: #ffd43b; }
-        .status-info { background: #339af0; }
 
         .alert {
             padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 20px;
+            margin: 15px 0;
+            border-radius: 6px;
             display: none;
         }
 
@@ -957,83 +982,68 @@ function getConsolidatedHomePage() {
             border: 1px solid #ffeaa7;
         }
 
-        .tabs {
-            display: flex;
-            border-bottom: 2px solid #e1e5e9;
+        .alert-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .result {
+            background: #f1f3f4;
+            border: 1px solid #dee2e6;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+            display: none;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
             margin-bottom: 20px;
         }
 
-        .tab {
-            padding: 12px 24px;
-            cursor: pointer;
-            border: none;
-            background: none;
-            font-size: 14px;
-            font-weight: 600;
-            color: #666;
-            border-bottom: 2px solid transparent;
-            transition: all 0.3s;
-        }
-
-        .tab.active {
-            color: #667eea;
-            border-bottom-color: #667eea;
-        }
-
-        .tab-content {
-            display: none;
-        }
-
-        .tab-content.active {
-            display: block;
-        }
-
-        .loading {
-            display: none;
-            text-align: center;
+        .stat-card {
+            background: white;
             padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #e0e0e0;
+            text-align: center;
         }
 
-        .spinner {
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #667eea;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 10px;
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #007bff;
+            margin-bottom: 5px;
         }
 
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+        .stat-label {
+            color: #6c757d;
+            font-size: 0.9rem;
         }
 
         @media (max-width: 768px) {
-            .container {
-                margin: 10px;
-                border-radius: 10px;
-            }
-
-            .header {
-                padding: 20px;
-            }
-
-            .header h1 {
-                font-size: 2em;
-            }
-
-            .main-content {
-                padding: 20px;
+            body {
+                padding: 10px;
             }
 
             .tabs {
-                flex-wrap: wrap;
+                flex-direction: column;
             }
 
             .tab {
-                flex: 1;
-                min-width: 120px;
+                min-width: auto;
+            }
+
+            .tab-content {
+                padding: 20px;
             }
         }
     </style>
@@ -1042,163 +1052,124 @@ function getConsolidatedHomePage() {
     <div class="container">
         <div class="header">
             <h1>🔍 IP地址纯净度检查工具</h1>
-            <p>一站式IP检测服务 - 支持单IP检测、批量检测、订阅管理和定时任务</p>
+            <p>一站式IP检测、订阅管理和Clash配置生成服务</p>
         </div>
 
-        <div class="main-content">
-            <!-- 提示信息 -->
-            <div id="alertContainer"></div>
+        <!-- 提示信息容器 -->
+        <div id="alertContainer"></div>
 
-            <!-- 标签页导航 -->
-            <div class="tabs">
-                <button class="tab active" onclick="switchTab('single-ip')">🔍 单IP检测</button>
-                <button class="tab" onclick="switchTab('batch-ip')">📋 批量检测</button>
-                <button class="tab" onclick="switchTab('subscription')">📡 订阅管理</button>
-                <button class="tab" onclick="switchTab('scheduled')">⏰ 定时任务</button>
-                <button class="tab" onclick="switchTab('settings')">⚙️ 设置</button>
-            </div>
+        <!-- 标签页导航 -->
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('single-ip')">🔍 单IP检测</button>
+            <button class="tab" onclick="switchTab('batch-ip')">📋 批量检测</button>
+            <button class="tab" onclick="switchTab('subscription')">📡 订阅管理</button>
+            <button class="tab" onclick="switchTab('scheduled')">⏰ 定时任务</button>
+            <button class="tab" onclick="switchTab('settings')">⚙️ 设置</button>
+        </div>
 
-            <!-- 单IP检测标签页 -->
-            <div id="single-ip" class="tab-content active">
-                <div class="section">
-                    <h2>🔍 单IP地址检测</h2>
-                    <div class="form-group">
-                        <label for="singleIp">IP地址:</label>
-                        <input type="text" id="singleIp" placeholder="例如: 8.8.8.8" value="8.8.8.8">
-                    </div>
-                    <button class="btn" onclick="checkSingleIP()">🔍 检测IP</button>
-                    <div id="singleResult" class="result"></div>
+        <!-- 单IP检测标签页 -->
+        <div id="single-ip" class="tab-content active">
+            <div class="section">
+                <h3>🔍 单IP检测</h3>
+                <div class="form-group">
+                    <label for="singleIp">IP地址:</label>
+                    <input type="text" id="singleIp" placeholder="请输入IP地址，例如：8.8.8.8">
                 </div>
+                <button class="btn" onclick="checkSingleIP()">检测IP</button>
+                <div id="singleResult" class="result"></div>
             </div>
+        </div>
 
-            <!-- 批量检测标签页 -->
-            <div id="batch-ip" class="tab-content">
-                <div class="section">
-                    <h2>📋 批量IP检测</h2>
-                    <div class="form-group">
-                        <label for="batchIps">IP地址列表 (每行一个):</label>
-                        <textarea id="batchIps" rows="8" placeholder="8.8.8.8
-1.1.1.1
-208.67.222.222
-9.9.9.9"></textarea>
-                    </div>
-                    <button class="btn" onclick="checkBatchIPs()">📋 批量检测</button>
-                    <button class="btn btn-success" onclick="exportResults()">📊 导出结果</button>
-                    <div id="batchResult" class="result"></div>
+        <!-- 批量检测标签页 -->
+        <div id="batch-ip" class="tab-content">
+            <div class="section">
+                <h3>📋 批量IP检测</h3>
+                <div class="form-group">
+                    <label for="batchIps">IP地址列表 (每行一个IP):</label>
+                    <textarea id="batchIps" rows="10" placeholder="请输入IP地址，每行一个：&#10;8.8.8.8&#10;1.1.1.1&#10;208.67.222.222"></textarea>
                 </div>
+                <button class="btn" onclick="checkBatchIPs()">批量检测</button>
+                <button class="btn btn-secondary" onclick="exportResults()">导出CSV</button>
+                <div id="batchResult" class="result"></div>
             </div>
+        </div>
 
-            <!-- 订阅管理标签页 -->
-            <div id="subscription" class="tab-content">
-                <div class="section">
-                    <h2>📡 订阅链接管理</h2>
-                    <div class="form-group">
-                        <label for="subscriptionName">订阅名称:</label>
-                        <input type="text" id="subscriptionName" placeholder="例如: 机场A - 高速节点">
-                    </div>
-                    <div class="form-group">
-                        <label for="subscriptionUrl">订阅链接:</label>
-                        <textarea id="subscriptionUrl" rows="3" placeholder="https://example.com/subscription"></textarea>
-                    </div>
-                    <button class="btn" onclick="addSubscription()">➕ 添加订阅</button>
-                    <button class="btn btn-success" onclick="checkAllSubscriptions()">🔍 检查所有订阅</button>
-                    <button class="btn btn-danger" onclick="clearSubscriptions()">🗑️ 清空订阅</button>
-
-                    <h3 style="margin-top: 30px;">📋 已保存的订阅</h3>
-                    <div id="subscriptionList"></div>
-                    <div id="subscriptionResult" class="result"></div>
+        <!-- 订阅管理标签页 -->
+        <div id="subscription" class="tab-content">
+            <div class="section">
+                <h3>📡 订阅管理</h3>
+                <div class="form-group">
+                    <label for="subscriptionName">订阅名称:</label>
+                    <input type="text" id="subscriptionName" placeholder="例如：我的订阅">
                 </div>
+                <div class="form-group">
+                    <label for="subscriptionUrl">订阅链接:</label>
+                    <input type="url" id="subscriptionUrl" placeholder="https://example.com/subscription">
+                </div>
+                <button class="btn" onclick="addSubscription()">添加订阅</button>
+                <button class="btn btn-secondary" onclick="checkAllSubscriptions()">检查所有订阅</button>
+                <button class="btn btn-danger" onclick="clearSubscriptions()">清空订阅</button>
+                <div id="subscriptionResult" class="result"></div>
+                <div id="subscriptionList"></div>
             </div>
+        </div>
 
-            <!-- 定时任务标签页 -->
-            <div id="scheduled" class="tab-content">
-                <div class="section">
-                    <h2>⏰ 定时任务管理</h2>
-                    <div class="status" style="background: #d4edda; color: #155724; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-                        <span class="status-indicator status-success"></span>
-                        定时任务服务运行正常 - 每日UTC 16:00自动执行
+        <!-- 定时任务标签页 -->
+        <div id="scheduled" class="tab-content">
+            <div class="section">
+                <h3>⏰ 定时任务状态</h3>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-number" id="totalChecked">-</div>
+                        <div class="stat-label">总检测数</div>
                     </div>
-
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 20px;">
-                        <div style="background: white; padding: 20px; border-radius: 10px; text-align: center; border: 1px solid #e1e5e9;">
-                            <div style="font-size: 2em; font-weight: bold; color: #667eea;" id="totalChecked">-</div>
-                            <div style="color: #666; margin-top: 5px;">总检测次数</div>
-                        </div>
-                        <div style="background: white; padding: 20px; border-radius: 10px; text-align: center; border: 1px solid #e1e5e9;">
-                            <div style="font-size: 2em; font-weight: bold; color: #51cf66;" id="pureIPs">-</div>
-                            <div style="color: #666; margin-top: 5px;">纯净IP数量</div>
-                        </div>
-                        <div style="background: white; padding: 20px; border-radius: 10px; text-align: center; border: 1px solid #e1e5e9;">
-                            <div style="font-size: 2em; font-weight: bold; color: #ffd43b;" id="lastCheck">从未</div>
-                            <div style="color: #666; margin-top: 5px;">最后检查</div>
-                        </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="pureIPs">-</div>
+                        <div class="stat-label">纯净IP数</div>
                     </div>
-
-                    <button class="btn" onclick="checkStatus()">📊 查看状态</button>
-                    <button class="btn btn-success" onclick="manualCheck()">🔄 手动检查</button>
-                    <button class="btn" onclick="downloadClashConfig()">⚙️ 下载Clash配置</button>
-
-                    <div id="scheduledResult" class="result"></div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="lastCheck">从未</div>
+                        <div class="stat-label">最后检测</div>
+                    </div>
                 </div>
+                <button class="btn" onclick="checkStatus()">查询状态</button>
+                <button class="btn btn-secondary" onclick="manualCheck()">手动检查</button>
+                <button class="btn btn-secondary" onclick="downloadClashConfig()">下载Clash配置</button>
+                <div id="scheduledResult" class="result"></div>
             </div>
+        </div>
 
-            <!-- 设置标签页 -->
-            <div id="settings" class="tab-content">
-                <div class="section">
-                    <h2>⚙️ API密钥设置</h2>
-                    <p style="color: #666; margin-bottom: 20px;">
-                        配置API密钥以获得更准确的检测结果。密钥将保存在浏览器会话中，不会上传到服务器。
-                    </p>
-
-                    <div class="form-group">
-                        <label for="proxycheckKey">ProxyCheck.io API密钥 (推荐):</label>
-                        <input type="password" id="proxycheckKey" placeholder="输入您的ProxyCheck.io API密钥">
-                        <small style="color: #666;">
-                            <a href="https://proxycheck.io/api/" target="_blank">免费注册</a> 获得1000次/天检测额度
-                        </small>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="ipinfoToken">IPinfo.io Token (备用):</label>
-                        <input type="password" id="ipinfoToken" placeholder="输入您的IPinfo.io Token">
-                        <small style="color: #666;">
-                            <a href="https://ipinfo.io/signup" target="_blank">免费注册</a> 获得50000次/月检测额度
-                        </small>
-                    </div>
-
-                    <button class="btn" onclick="saveSettings()">💾 保存设置</button>
-                    <button class="btn" onclick="testAPIKeys()">🧪 测试API密钥</button>
-                    <button class="btn btn-danger" onclick="clearSettings()">🗑️ 清除设置</button>
-
-                    <div id="settingsResult" class="result"></div>
+        <!-- 设置标签页 -->
+        <div id="settings" class="tab-content">
+            <div class="section">
+                <h3>⚙️ API密钥设置</h3>
+                <p style="color: #6c757d; margin-bottom: 20px;">
+                    配置API密钥可以显著提升检测精度（从70%提升到95%+）
+                </p>
+                <div class="form-group">
+                    <label for="proxycheckKey">ProxyCheck.io API密钥:</label>
+                    <input type="password" id="proxycheckKey" placeholder="输入您的ProxyCheck.io API密钥">
+                    <small style="color: #6c757d;">免费额度：1000次/天 | <a href="https://proxycheck.io/api/" target="_blank">获取密钥</a></small>
                 </div>
+                <div class="form-group">
+                    <label for="ipinfoToken">IPinfo.io Token:</label>
+                    <input type="password" id="ipinfoToken" placeholder="输入您的IPinfo.io Token">
+                    <small style="color: #6c757d;">免费额度：50000次/月 | <a href="https://ipinfo.io/signup" target="_blank">获取Token</a></small>
+                </div>
+                <button class="btn" onclick="saveSettings()">保存设置</button>
+                <button class="btn btn-secondary" onclick="testAPIKeys()">测试API密钥</button>
+                <button class="btn btn-danger" onclick="clearSettings()">清除设置</button>
+                <div id="settingsResult" class="result"></div>
 
-                <div class="section">
-                    <h2>📚 使用说明</h2>
-                    <div style="background: white; padding: 20px; border-radius: 8px;">
-                        <h3>🔧 环境变量配置 (服务器管理员)</h3>
-                        <p>如果您是服务器管理员，可以在Cloudflare Dashboard中配置全局API密钥：</p>
-                        <ol style="margin: 15px 0; padding-left: 20px;">
-                            <li>登录 <a href="https://dash.cloudflare.com" target="_blank">Cloudflare Dashboard</a></li>
-                            <li>选择您的账户 → Workers & Pages</li>
-                            <li>找到 "ip-purity-checker" 项目</li>
-                            <li>进入 Settings → Environment variables</li>
-                            <li>添加变量：
-                                <ul style="margin: 10px 0; padding-left: 20px;">
-                                    <li><code>PROXYCHECK_API_KEY</code> = 您的ProxyCheck.io密钥</li>
-                                    <li><code>IPINFO_TOKEN</code> = 您的IPinfo.io Token</li>
-                                </ul>
-                            </li>
-                            <li>保存并重新部署</li>
-                        </ol>
-
-                        <h3>🎯 检测说明</h3>
-                        <ul style="margin: 15px 0; padding-left: 20px;">
-                            <li><strong>纯净IP</strong>: 不是代理、VPN或数据中心IP的普通住宅IP</li>
-                            <li><strong>风险评分</strong>: 0-100分，分数越高风险越大</li>
-                            <li><strong>检测精度</strong>: 配置API密钥可显著提高检测准确性</li>
-                        </ul>
-                    </div>
+                <div style="margin-top: 30px; padding: 20px; background: #e9ecef; border-radius: 6px;">
+                    <h4>📖 使用说明</h4>
+                    <ul style="margin-top: 10px; padding-left: 20px;">
+                        <li><strong>单IP检测</strong>: 输入单个IP地址进行纯净度检测</li>
+                        <li><strong>批量检测</strong>: 同时检测多个IP地址，支持CSV导出</li>
+                        <li><strong>订阅管理</strong>: 添加和管理您的私人订阅链接</li>
+                        <li><strong>定时任务</strong>: 查看自动检测状态和下载优化配置</li>
+                        <li><strong>设置</strong>: 配置API密钥以获得更高检测精度</li>
+                    </ul>
                 </div>
             </div>
         </div>
@@ -1211,6 +1182,7 @@ function getConsolidatedHomePage() {
             proxycheck: localStorage.getItem('proxycheck_key') || '',
             ipinfo: localStorage.getItem('ipinfo_token') || ''
         };
+        let batchResults = [];
 
         // 页面加载时初始化
         document.addEventListener('DOMContentLoaded', function() {
@@ -1222,12 +1194,12 @@ function getConsolidatedHomePage() {
         // 标签页切换
         function switchTab(tabName) {
             // 隐藏所有标签页内容
-            document.querySelectorAll('.tab-content').forEach(content => {
+            document.querySelectorAll('.tab-content').forEach(function(content) {
                 content.classList.remove('active');
             });
 
             // 移除所有标签页的active类
-            document.querySelectorAll('.tab').forEach(tab => {
+            document.querySelectorAll('.tab').forEach(function(tab) {
                 tab.classList.remove('active');
             });
 
@@ -1237,7 +1209,8 @@ function getConsolidatedHomePage() {
         }
 
         // 显示提示信息
-        function showAlert(message, type = 'success') {
+        function showAlert(message, type) {
+            type = type || 'success';
             const alertContainer = document.getElementById('alertContainer');
             const alertDiv = document.createElement('div');
             alertDiv.className = 'alert alert-' + type;
@@ -1248,13 +1221,14 @@ function getConsolidatedHomePage() {
             alertContainer.appendChild(alertDiv);
 
             // 3秒后自动隐藏
-            setTimeout(() => {
+            setTimeout(function() {
                 alertDiv.style.display = 'none';
             }, 3000);
         }
 
         // 显示结果
-        function showResult(elementId, content, isError = false) {
+        function showResult(elementId, content, isError) {
+            isError = isError || false;
             const resultDiv = document.getElementById(elementId);
             resultDiv.style.display = 'block';
             resultDiv.textContent = typeof content === 'string' ? content : JSON.stringify(content, null, 2);
@@ -1295,7 +1269,7 @@ function getConsolidatedHomePage() {
                 }
             } catch (error) {
                 showResult('singleResult', '错误: ' + error.message, true);
-                showAlert('网络错误: ' + error.message, 'error');
+                showAlert('检测失败: ' + error.message, 'error');
             }
         }
 
@@ -1307,7 +1281,7 @@ function getConsolidatedHomePage() {
                 return;
             }
 
-            const ips = ipsText.split('\\n').map(ip => ip.trim()).filter(ip => ip);
+            const ips = ipsText.split('\n').map(function(ip) { return ip.trim(); }).filter(function(ip) { return ip; });
             if (ips.length === 0) {
                 showAlert('没有有效的IP地址', 'error');
                 return;
@@ -1337,7 +1311,7 @@ function getConsolidatedHomePage() {
 
                     // 添加延迟避免API限制
                     if (i < ips.length - 1) {
-                        await new Promise(resolve => setTimeout(resolve, 1000));
+                        await new Promise(function(resolve) { setTimeout(resolve, 1000); });
                     }
                 } catch (error) {
                     results.push({
@@ -1348,38 +1322,32 @@ function getConsolidatedHomePage() {
                 }
             }
 
+            batchResults = results;
             showResult('batchResult', results);
             showAlert('批量检测完成，共检测 ' + results.length + ' 个IP', 'success');
         }
 
-        // 导出结果
+        // 导出CSV结果
         function exportResults() {
-            const resultDiv = document.getElementById('batchResult');
-            if (!resultDiv.textContent || resultDiv.style.display === 'none') {
+            if (!batchResults || batchResults.length === 0) {
                 showAlert('没有可导出的结果', 'warning');
                 return;
             }
 
             try {
-                const results = JSON.parse(resultDiv.textContent);
-                if (!Array.isArray(results)) {
-                    showAlert('结果格式不正确', 'error');
-                    return;
-                }
-
-                // 生成CSV内容
-                const csvHeader = 'IP地址,纯净度,风险评分,国家,城市,ISP,检测时间\\n';
-                const csvContent = results.map(result => {
+                const csvHeader = 'IP地址,纯净度,风险评分,代理类型,国家,城市,ISP,检测时间\n';
+                const csvContent = batchResults.map(function(result) {
                     return [
                         result.ip || '',
                         result.isPure ? '纯净' : '不纯净',
                         result.riskScore || '',
+                        result.proxyType || '',
                         result.country || '',
                         result.city || '',
                         result.org || result.isp || '',
                         result.timestamp || new Date().toISOString()
                     ].join(',');
-                }).join('\\n');
+                }).join('\n');
 
                 // 下载文件
                 const blob = new Blob([csvHeader + csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -1404,41 +1372,25 @@ function getConsolidatedHomePage() {
                 return;
             }
 
-            // 检查URL格式
-            try {
-                new URL(url);
-            } catch (e) {
-                showAlert('请输入有效的订阅链接', 'error');
-                return;
-            }
-
-            // 检查是否重复
-            if (subscriptions.some(sub => sub.url === url)) {
-                showAlert('该订阅链接已存在', 'warning');
-                return;
-            }
-
             const subscription = {
                 id: Date.now().toString(),
                 name: name,
                 url: url,
                 createdAt: new Date().toISOString(),
-                lastChecked: null,
-                status: 'unknown'
+                status: 'pending'
             };
 
             subscriptions.push(subscription);
             saveSubscriptions();
             renderSubscriptions();
 
-            // 清空表单
+            // 清空输入框
             document.getElementById('subscriptionName').value = '';
             document.getElementById('subscriptionUrl').value = '';
 
             showAlert('订阅添加成功', 'success');
         }
 
-        // 保存订阅到localStorage
         function saveSubscriptions() {
             localStorage.setItem('subscriptions', JSON.stringify(subscriptions));
         }
@@ -1483,7 +1435,7 @@ function getConsolidatedHomePage() {
 
         // 测试单个订阅
         async function testSubscription(id) {
-            const subscription = subscriptions.find(sub => sub.id === id);
+            const subscription = subscriptions.find(function(sub) { return sub.id === id; });
             if (!subscription) return;
 
             showAlert('正在测试订阅连接...', 'info');
@@ -1520,7 +1472,7 @@ function getConsolidatedHomePage() {
         function deleteSubscription(id) {
             if (!confirm('确定要删除这个订阅吗？')) return;
 
-            subscriptions = subscriptions.filter(sub => sub.id !== id);
+            subscriptions = subscriptions.filter(function(sub) { return sub.id !== id; });
             saveSubscriptions();
             renderSubscriptions();
             showAlert('订阅删除成功', 'success');
@@ -1554,7 +1506,9 @@ function getConsolidatedHomePage() {
                     const result = await response.json();
                     results.push({
                         name: sub.name,
-                        ...result
+                        success: result.success,
+                        totalNodes: result.totalNodes || 0,
+                        error: result.error
                     });
 
                     sub.lastChecked = new Date().toISOString();
@@ -1562,7 +1516,7 @@ function getConsolidatedHomePage() {
 
                     // 添加延迟
                     if (i < subscriptions.length - 1) {
-                        await new Promise(resolve => setTimeout(resolve, 2000));
+                        await new Promise(function(resolve) { setTimeout(resolve, 2000); });
                     }
                 } catch (error) {
                     results.push({
@@ -1782,6 +1736,7 @@ function getConsolidatedHomePage() {
 </body>
 </html>`;
 }
+
 
 // 解析单行节点配置
 function parseNodeLine(line) {
