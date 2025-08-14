@@ -1,0 +1,6 @@
+/.idea
+/.venv
+/.vscode
+/files/
+__pycache__
+GEMINI.md

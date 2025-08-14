@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IP地址纯净度检查器</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        
+        .input-group {
+            margin-bottom: 20px;
+        }
+        
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+        }
+        
+        .input-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        
+        .input-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+        
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .result {
+            margin-top: 20px;
+            padding: 20px;
+            border-radius: 8px;
+            display: none;
+        }
+        
+        .result.success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        
+        .result.error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        
+        .result.warning {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 40px;
+        }
+        
+        .feature {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        
+        .feature-icon {
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+        
+        .api-docs {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+        
+        .api-endpoint {
+            background: #e9ecef;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔍 IP地址纯净度检查器</h1>
+            <p>基于IPinfo.io的高精度IP纯净度检测服务</p>
+        </div>
+        
+        <div class="card">
+            <h2>单IP检测</h2>
+            <div class="input-group">
+                <label for="ipInput">输入IP地址：</label>
+                <input type="text" id="ipInput" placeholder="例如：8.8.8.8" />
+            </div>
+            <button class="btn" onclick="checkSingleIP()">检查纯净度</button>
+            
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>正在检查中...</p>
+            </div>
+            
+            <div class="result" id="result"></div>
+        </div>
+        
+        <div class="features">
+            <div class="feature">
+                <div class="feature-icon">⚡</div>
+                <h3>高速检测</h3>
+                <p>基于Cloudflare/Vercel全球边缘网络，毫秒级响应</p>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">🎯</div>
+                <h3>精确判定</h3>
+                <p>使用IPinfo.io专业privacy字段，准确识别VPN/代理/托管IP</p>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">🔄</div>
+                <h3>自动更新</h3>
+                <p>每日自动更新IP数据库，确保检测结果时效性</p>
+            </div>
+        </div>
+        
+        <div class="card">
+            <h2>API文档</h2>
+            <div class="api-docs">
+                <h3>可用接口</h3>
+                <div class="api-endpoint">
+                    GET /api/check-ip?ip={ip_address}
+                </div>
+                <p>检查单个IP地址的纯净度</p>
+                
+                <div class="api-endpoint">
+                    GET /api/scheduled-check
+                </div>
+                <p>执行完整的订阅IP检查（定时任务）</p>
+                
+                <h3>响应格式</h3>
+                <pre>{
+  "ip": "8.8.8.8",
+  "country": "US",
+  "city": "Mountain View",
+  "org": "AS15169 Google LLC",
+  "isPure": false,
+  "privacy": {
+    "hosting": true,
+    "vpn": false,
+    "proxy": false,
+    "tor": false
+  },
+  "timestamp": "2024-01-01T00:00:00Z"
+}</pre>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        async function checkSingleIP() {
+            const ipInput = document.getElementById('ipInput');
+            const loading = document.getElementById('loading');
+            const result = document.getElementById('result');
+            const btn = document.querySelector('.btn');
+            
+            const ip = ipInput.value.trim();
+            if (!ip) {
+                showResult('请输入有效的IP地址', 'error');
+                return;
+            }
+            
+            // 显示加载状态
+            loading.style.display = 'block';
+            result.style.display = 'none';
+            btn.disabled = true;
+            
+            try {
+                const response = await fetch(`/api/check-ip?ip=${encodeURIComponent(ip)}`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    displayIPResult(data);
+                } else {
+                    showResult(`错误: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                showResult(`网络错误: ${error.message}`, 'error');
+            } finally {
+                loading.style.display = 'none';
+                btn.disabled = false;
+            }
+        }
+        
+        function displayIPResult(data) {
+            const purityText = data.isPure ? '✅ 纯净IP' : '❌ 非纯净IP';
+            const purityClass = data.isPure ? 'success' : 'warning';
+            
+            let privacyInfo = '';
+            if (data.privacy) {
+                const privacy = data.privacy;
+                privacyInfo = `
+                    <h4>详细信息：</h4>
+                    <ul>
+                        <li>托管服务器: ${privacy.hosting ? '是' : '否'}</li>
+                        <li>VPN: ${privacy.vpn ? '是' : '否'}</li>
+                        <li>代理: ${privacy.proxy ? '是' : '否'}</li>
+                        <li>Tor: ${privacy.tor ? '是' : '否'}</li>
+                    </ul>
+                `;
+            }
+            
+            const resultHTML = `
+                <h3>${purityText}</h3>
+                <p><strong>IP:</strong> ${data.ip}</p>
+                <p><strong>位置:</strong> ${data.city}, ${data.country}</p>
+                <p><strong>组织:</strong> ${data.org}</p>
+                ${privacyInfo}
+                <p><small>检测时间: ${new Date(data.timestamp).toLocaleString()}</small></p>
+            `;
+            
+            showResult(resultHTML, purityClass);
+        }
+        
+        function showResult(message, type) {
+            const result = document.getElementById('result');
+            result.innerHTML = message;
+            result.className = `result ${type}`;
+            result.style.display = 'block';
+        }
+        
+        // 支持回车键检测
+        document.getElementById('ipInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                checkSingleIP();
+            }
+        });
+    </script>
+</body>
+</html>

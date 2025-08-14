@@ -1,0 +1,38 @@
+name: Subscription IP Purity Check
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 3 * * *' # UTC，每日 03:00 触发
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run purity check
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+        run: |
+          python scripts/run_purity_check.py
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: subscription_ip_report
+          path: subscription_ip_report.csv
+
+

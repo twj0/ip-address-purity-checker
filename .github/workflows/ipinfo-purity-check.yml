@@ -1,0 +1,68 @@
+name: IPinfo.io IP Purity Check
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 16 * * *' # UTC 16:00 触发 (北京时间 00:00)
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          
+      - name: Run IPinfo.io purity check
+        env:
+          IPINFO_TOKEN: ${{ secrets.IPINFO_TOKEN }}
+        run: |
+          echo "Using IPinfo.io for enhanced IP purity checking..."
+          python scripts/run_purity_check.py
+          
+      - name: Generate optimized Clash config
+        env:
+          IPINFO_TOKEN: ${{ secrets.IPINFO_TOKEN }}
+        run: |
+          echo "Generating Clash config with IPinfo.io data..."
+          python scripts/dedup_purity_to_yaml.py
+          
+      - name: Upload purity report
+        uses: actions/upload-artifact@v4
+        with:
+          name: ipinfo-purity-report
+          path: subscription_ip_report.csv
+          retention-days: 30
+          
+      - name: Upload Clash config
+        uses: actions/upload-artifact@v4
+        with:
+          name: ipinfo-clash-config
+          path: dedup_purity_clash.yml
+          retention-days: 30
+          
+      - name: Performance summary
+        run: |
+          echo "## IPinfo.io Performance Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- Service: IPinfo.io (upgraded from ip-api.com)" >> $GITHUB_STEP_SUMMARY
+          echo "- Rate limit: 50,000 requests/month vs 45 requests/minute" >> $GITHUB_STEP_SUMMARY
+          echo "- Concurrency: 50 workers vs 16 workers" >> $GITHUB_STEP_SUMMARY
+          echo "- Privacy data: Enhanced accuracy with dedicated privacy fields" >> $GITHUB_STEP_SUMMARY
+          
+          if [ -f "subscription_ip_report.csv" ]; then
+            TOTAL_IPS=$(tail -n +2 subscription_ip_report.csv | wc -l)
+            PURE_IPS=$(tail -n +2 subscription_ip_report.csv | grep -c ",pure,")
+            echo "- Total IPs processed: $TOTAL_IPS" >> $GITHUB_STEP_SUMMARY
+            echo "- Pure IPs found: $PURE_IPS" >> $GITHUB_STEP_SUMMARY
+            echo "- Purity rate: $(echo "scale=1; $PURE_IPS * 100 / $TOTAL_IPS" | bc)%" >> $GITHUB_STEP_SUMMARY
+          fi
