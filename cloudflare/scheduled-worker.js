@@ -265,7 +265,7 @@ async function checkIPWithProxyCheck(ip, apiKey) {
             key: apiKey
         });
         
-        const response = await fetch(`http://proxycheck.io/v2/${ip}?${params}`, {
+        const response = await fetch('http://proxycheck.io/v2/' + ip + '?' + params, {
             timeout: 10000
         });
         
@@ -300,7 +300,7 @@ async function checkIPWithProxyCheck(ip, apiKey) {
 // IPinfo.io检测
 async function checkIPWithIPInfo(ip, token) {
     try {
-        const response = await fetch(`https://ipinfo.io/${ip}/json`, {
+        const response = await fetch('https://ipinfo.io/' + ip + '/json', {
             headers: { 'Authorization': `Bearer ${token}` },
             timeout: 10000
         });
@@ -330,7 +330,7 @@ async function checkIPWithIPInfo(ip, token) {
 // ip-api.com检测
 async function checkIPWithIPAPI(ip) {
     try {
-        const response = await fetch(`http://ip-api.com/json/${ip}`, {
+        const response = await fetch('http://ip-api.com/json/' + ip, {
             timeout: 8000
         });
         
@@ -488,7 +488,7 @@ async function handleCheckIP(request, env) {
         // 优先使用ProxyCheck.io
         if (proxycheckKey) {
             try {
-                const response = await fetch(`https://proxycheck.io/v2/${ip}?vpn=1&asn=1&risk=1&time=1&inf=0&key=${proxycheckKey}`);
+                const response = await fetch('https://proxycheck.io/v2/' + ip + '?vpn=1&asn=1&risk=1&time=1&inf=0&key=' + proxycheckKey);
                 const data = await response.json();
 
                 if (data[ip]) {
@@ -513,9 +513,9 @@ async function handleCheckIP(request, env) {
         // 备用：使用IPinfo.io
         if (!result && ipinfoToken) {
             try {
-                const response = await fetch(`https://ipinfo.io/${ip}/json`, {
+                const response = await fetch('https://ipinfo.io/' + ip + '/json', {
                     headers: {
-                        'Authorization': `Bearer ${ipinfoToken}`
+                        'Authorization': 'Bearer ' + ipinfoToken
                     }
                 });
                 const data = await response.json();
@@ -541,7 +541,7 @@ async function handleCheckIP(request, env) {
         // 最后备用：使用ip-api.com
         if (!result) {
             try {
-                const response = await fetch(`http://ip-api.com/json/${ip}?fields=status,message,country,city,isp,org,proxy,hosting`);
+                const response = await fetch('http://ip-api.com/json/' + ip + '?fields=status,message,country,city,isp,org,proxy,hosting');
                 const data = await response.json();
 
                 if (data.status === 'success') {
@@ -621,7 +621,7 @@ async function handleCheckSubscription(request, env) {
         if (!response.ok) {
             return new Response(JSON.stringify({
                 success: false,
-                error: `HTTP ${response.status}: ${response.statusText}`
+                error: 'HTTP ' + response.status + ': ' + response.statusText
             }), {
                 status: 400,
                 headers: corsHeaders
@@ -1780,7 +1780,7 @@ function getConsolidatedHomePage() {
         }
     </script>
 </body>
-</html>\`;
+</html>`;
 }
 
 // 解析单行节点配置
