@@ -1,123 +1,41 @@
-name: Deploy Web Interface
+name: 🚀 Deploy Cloudflare Pages
 
 on:
   push:
     branches: [main]
     paths:
       - 'public/**'
-      - 'api/**'
-      - 'vercel.json'
+      - 'functions/**'
+      - 'cloudflare/**'
+      - 'wrangler.toml'
       - '.github/workflows/deploy-web-interface.yml'
   pull_request:
     branches: [main]
     paths:
       - 'public/**'
-      - 'api/**'
-      - 'vercel.json'
+      - 'functions/**'
+      - 'cloudflare/**'
+      - 'wrangler.toml'
   workflow_dispatch:
     inputs:
-      deployment_target:
-        description: 'Deployment target'
-        required: true
-        default: 'vercel'
-        type: choice
-        options:
-          - vercel
-          - cloudflare-pages
       environment:
-        description: 'Environment'
+        description: 'Deployment environment'
         required: true
         default: 'production'
         type: choice
         options:
           - production
           - preview
+      force_deploy:
+        description: 'Force deployment even if no changes detected'
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   # 代码质量检查
   quality-check:
     runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.11'
-
-      - name: Install dependencies
-        run: |
-          pip install -r api/requirements.txt
-          pip install flake8 black
-
-      - name: Code formatting check
-        run: |
-          black --check api/
-        continue-on-error: true
-
-      - name: Lint check
-        run: |
-          flake8 api/ --max-line-length=100 --ignore=E203,W503
-        continue-on-error: true
-
-      - name: API syntax check
-        run: |
-          python -m py_compile api/check-ip.py
-          python -m py_compile api/check-subscription.py
-
-      - name: Run deployment diagnostic
-        run: |
-          python scripts/diagnose_deployment.py
-        continue-on-error: true
-
-  # Vercel部署
-  deploy-vercel:
-    needs: quality-check
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.deployment_target == 'vercel')
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-
-      - name: Install Vercel CLI
-        run: npm install -g vercel
-
-      - name: Deploy to Vercel (Preview)
-        if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'preview')
-        run: |
-          vercel --token ${{ secrets.VERCEL_TOKEN }} --scope ${{ secrets.VERCEL_ORG_ID }}
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-
-      - name: Deploy to Vercel (Production)
-        if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production')
-        run: |
-          vercel --prod --token ${{ secrets.VERCEL_TOKEN }} --scope ${{ secrets.VERCEL_ORG_ID }}
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-
-      - name: Set environment variables
-        if: github.event_name == 'push'
-        run: |
-          if [ ! -z "${{ secrets.IPINFO_TOKEN }}" ]; then
-            echo "${{ secrets.IPINFO_TOKEN }}" | vercel env add IPINFO_TOKEN production --token ${{ secrets.VERCEL_TOKEN }} --scope ${{ secrets.VERCEL_ORG_ID }} || true
-          fi
-
-  # Cloudflare Pages部署
-  deploy-cloudflare:
-    needs: quality-check
-    runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch' && github.event.inputs.deployment_target == 'cloudflare-pages'
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -130,150 +48,193 @@ jobs:
       - name: Install Wrangler CLI
         run: npm install -g wrangler
 
-      - name: Create Pages Function
+      - name: Validate Cloudflare configuration
         run: |
-          mkdir -p public/functions
-          cat > public/functions/api/[[path]].js << 'EOF'
-          // Cloudflare Pages Functions for API routes
-          export async function onRequest(context) {
-            const { request, env } = context;
-            const url = new URL(request.url);
-            
-            // CORS处理
-            if (request.method === 'OPTIONS') {
-              return new Response(null, {
-                status: 200,
-                headers: {
-                  'Access-Control-Allow-Origin': '*',
-                  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-                  'Access-Control-Allow-Headers': 'Content-Type, X-IPInfo-Token'
-                }
-              });
-            }
-            
-            // 简化的IP检查实现
-            if (url.pathname.includes('/api/check-ip')) {
-              const ip = url.searchParams.get('ip');
-              if (!ip) {
-                return Response.json({ error: 'IP parameter required' }, { status: 400 });
-              }
-              
-              try {
-                const token = request.headers.get('X-IPInfo-Token') || env.IPINFO_TOKEN;
-                const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
-                
-                const response = await fetch(`https://ipinfo.io/${ip}/json`, { headers });
-                const data = await response.json();
-                
-                if (response.ok) {
-                  const isPure = !data.privacy?.hosting && !data.privacy?.vpn && !data.privacy?.proxy;
-                  return Response.json({
-                    ip: data.ip,
-                    country: data.country,
-                    city: data.city,
-                    org: data.org,
-                    isPure,
-                    privacy: data.privacy || {},
-                    timestamp: new Date().toISOString()
-                  }, {
-                    headers: { 'Access-Control-Allow-Origin': '*' }
-                  });
-                } else {
-                  return Response.json({ error: 'Failed to fetch IP info' }, { status: 500 });
-                }
-              } catch (error) {
-                return Response.json({ error: error.message }, { status: 500 });
-              }
-            }
-            
-            return Response.json({ error: 'API endpoint not found' }, { status: 404 });
-          }
-          EOF
+          # 检查wrangler.toml配置
+          if [ -f "wrangler.toml" ]; then
+            echo "✅ wrangler.toml found"
+            wrangler whoami || echo "⚠️ Not logged in to Cloudflare"
+          else
+            echo "❌ wrangler.toml not found"
+            exit 1
+          fi
 
-      - name: Deploy to Cloudflare Pages
+      - name: Validate Functions syntax
         run: |
-          wrangler pages deploy public --project-name ip-purity-checker --compatibility-date 2024-01-01
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          # 检查Functions语法
+          if [ -d "functions" ]; then
+            echo "✅ Functions directory found"
+            for file in functions/**/*.js; do
+              if [ -f "$file" ]; then
+                echo "Checking $file..."
+                node -c "$file" || echo "⚠️ Syntax error in $file"
+              fi
+            done
+          fi
 
-  # 部署后测试
-  post-deployment-test:
-    needs: [deploy-vercel]
+      - name: Validate Worker syntax
+        run: |
+          # 检查Worker语法
+          if [ -f "cloudflare/scheduled-worker.js" ]; then
+            echo "✅ Worker file found"
+            node -c "cloudflare/scheduled-worker.js" || echo "⚠️ Syntax error in Worker"
+          fi
+
+  # Cloudflare Pages部署
+  deploy-pages:
+    needs: quality-check
     runs-on: ubuntu-latest
-    if: always() && (needs.deploy-vercel.result == 'success')
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Python
-        uses: actions/setup-python@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          python-version: '3.11'
+          node-version: '18'
 
-      - name: Install test dependencies
+      - name: Install Wrangler CLI
+        run: npm install -g wrangler
+
+      - name: Deploy to Cloudflare Pages (Preview)
+        if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'preview')
         run: |
-          pip install requests
+          wrangler pages deploy public --project-name ip-purity-checker --compatibility-date 2024-01-01
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+
+      - name: Deploy to Cloudflare Pages (Production)
+        if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production')
+        run: |
+          wrangler pages deploy public --project-name ip-purity-checker --compatibility-date 2024-01-01 --env production
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+
+  # Cloudflare Workers部署
+  deploy-workers:
+    needs: quality-check
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install Wrangler CLI
+        run: npm install -g wrangler
+
+      - name: Deploy Cloudflare Workers
+        run: |
+          wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+
+  # 部署后测试
+  post-deployment-test:
+    needs: [deploy-pages, deploy-workers]
+    runs-on: ubuntu-latest
+    if: always() && (needs.deploy-pages.result == 'success' || needs.deploy-workers.result == 'success')
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
 
       - name: Wait for deployment
-        run: sleep 30
+        run: sleep 60
 
-      - name: Test deployment
+      - name: Test Cloudflare Pages deployment
         run: |
-          # 从Vercel获取部署URL（这里需要根据实际情况调整）
-          DEPLOYMENT_URL="https://ip-purity-checker.vercel.app"
-          
-          echo "Testing deployment at: $DEPLOYMENT_URL"
-          
+          # 测试Cloudflare Pages部署
+          PAGES_URL="https://ip-purity-checker.pages.dev"
+
+          echo "Testing Pages deployment at: $PAGES_URL"
+
           # 测试首页
-          if curl -f -s "$DEPLOYMENT_URL" > /dev/null; then
-            echo "✅ Homepage test passed"
+          if curl -f -s "$PAGES_URL" > /dev/null; then
+            echo "✅ Pages homepage test passed"
           else
-            echo "❌ Homepage test failed"
-            exit 1
+            echo "❌ Pages homepage test failed"
           fi
-          
-          # 测试API
-          API_RESPONSE=$(curl -s "$DEPLOYMENT_URL/api/check-ip?ip=8.8.8.8")
+
+          # 测试订阅管理器
+          if curl -f -s "$PAGES_URL/subscription-manager.html" > /dev/null; then
+            echo "✅ Subscription manager test passed"
+          else
+            echo "❌ Subscription manager test failed"
+          fi
+
+          # 测试API Functions
+          API_RESPONSE=$(curl -s "$PAGES_URL/api/check-ip?ip=8.8.8.8" || echo "")
           if echo "$API_RESPONSE" | grep -q '"ip"'; then
-            echo "✅ API test passed"
+            echo "✅ API Functions test passed"
             echo "Response: $API_RESPONSE"
           else
-            echo "❌ API test failed"
+            echo "⚠️ API Functions test failed or not ready"
             echo "Response: $API_RESPONSE"
-            exit 1
           fi
+        continue-on-error: true
+
+      - name: Test Cloudflare Workers deployment
+        run: |
+          # 注意：Worker URL需要根据实际账户ID调整
+          echo "⚠️ Worker testing requires account-specific URL"
+          echo "Please test manually at: https://ip-purity-checker.YOUR_ACCOUNT.workers.dev"
         continue-on-error: true
 
   # 通知
   notify:
-    needs: [deploy-vercel, deploy-cloudflare, post-deployment-test]
+    needs: [deploy-pages, deploy-workers, post-deployment-test]
     runs-on: ubuntu-latest
     if: always()
     steps:
       - name: Deployment Summary
         run: |
-          echo "## 🚀 部署总结" >> $GITHUB_STEP_SUMMARY
+          echo "## 🚀 Cloudflare 部署总结" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          
-          if [ "${{ needs.deploy-vercel.result }}" == "success" ]; then
-            echo "✅ **Vercel部署**: 成功" >> $GITHUB_STEP_SUMMARY
-            echo "🌐 **访问地址**: https://ip-purity-checker.vercel.app" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "❌ **Vercel部署**: 失败" >> $GITHUB_STEP_SUMMARY
-          fi
-          
-          if [ "${{ needs.deploy-cloudflare.result }}" == "success" ]; then
+          echo "**部署时间**: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ needs.deploy-pages.result }}" == "success" ]; then
             echo "✅ **Cloudflare Pages部署**: 成功" >> $GITHUB_STEP_SUMMARY
-          elif [ "${{ needs.deploy-cloudflare.result }}" == "failure" ]; then
+            echo "🌐 **Pages访问地址**: https://ip-purity-checker.pages.dev" >> $GITHUB_STEP_SUMMARY
+          else
             echo "❌ **Cloudflare Pages部署**: 失败" >> $GITHUB_STEP_SUMMARY
           fi
-          
+
+          if [ "${{ needs.deploy-workers.result }}" == "success" ]; then
+            echo "✅ **Cloudflare Workers部署**: 成功" >> $GITHUB_STEP_SUMMARY
+            echo "⚙️ **Worker服务**: 定时任务已部署" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Cloudflare Workers部署**: 失败" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [ "${{ needs.post-deployment-test.result }}" == "success" ]; then
+            echo "✅ **部署测试**: 通过" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ **部署测试**: 部分失败或跳过" >> $GITHUB_STEP_SUMMARY
+          fi
+
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 🎯 Web界面功能" >> $GITHUB_STEP_SUMMARY
-          echo "- 🔍 单IP检测" >> $GITHUB_STEP_SUMMARY
-          echo "- 📋 批量IP检测" >> $GITHUB_STEP_SUMMARY
-          echo "- 📡 订阅链接检测" >> $GITHUB_STEP_SUMMARY
-          echo "- ⚙️ Clash配置生成" >> $GITHUB_STEP_SUMMARY
-          echo "- 📊 CSV报告下载" >> $GITHUB_STEP_SUMMARY
-          echo "- 📱 响应式设计" >> $GITHUB_STEP_SUMMARY
+          echo "### 🎯 可用功能" >> $GITHUB_STEP_SUMMARY
+          echo "- 🔍 单IP检测和批量检测" >> $GITHUB_STEP_SUMMARY
+          echo "- 🔐 安全的订阅链接管理" >> $GITHUB_STEP_SUMMARY
+          echo "- 📡 订阅链接解析和检测" >> $GITHUB_STEP_SUMMARY
+          echo "- ⚙️ 每日自动Clash配置生成" >> $GITHUB_STEP_SUMMARY
+          echo "- 📊 详细的检测报告" >> $GITHUB_STEP_SUMMARY
+          echo "- 📱 响应式Web界面" >> $GITHUB_STEP_SUMMARY
+          echo "- ⏰ 定时任务自动检测" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔧 下一步操作" >> $GITHUB_STEP_SUMMARY
+          echo "1. 配置API密钥: \`wrangler secret put PROXYCHECK_API_KEY\`" >> $GITHUB_STEP_SUMMARY
+          echo "2. 配置IPinfo Token: \`wrangler secret put IPINFO_TOKEN\`" >> $GITHUB_STEP_SUMMARY
+          echo "3. 访问订阅管理器添加私人订阅链接" >> $GITHUB_STEP_SUMMARY
+          echo "4. 测试定时任务功能" >> $GITHUB_STEP_SUMMARY

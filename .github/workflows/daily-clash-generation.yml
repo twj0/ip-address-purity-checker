@@ -1,0 +1,322 @@
+name: 📅 Daily Clash Config Generation
+
+on:
+  schedule:
+    # 每日UTC 18:00生成Clash配置（北京时间02:00）
+    - cron: '0 18 * * *'
+  workflow_dispatch:
+    inputs:
+      force_generation:
+        description: '强制重新生成配置'
+        required: false
+        default: false
+        type: boolean
+      include_all_nodes:
+        description: '包含所有节点（不仅纯净节点）'
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  generate-clash-config:
+    runs-on: ubuntu-latest
+    if: github.repository != 'twj0/ip-address-purity-checker'  # 只在fork仓库中运行
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          npm install -g wrangler
+          npm install js-yaml
+
+      - name: Generate Clash configuration
+        id: generate_config
+        run: |
+          echo "开始生成Clash配置..."
+          
+          # 获取当前时间
+          CURRENT_TIME=$(date -u '+%Y-%m-%d %H:%M:%S UTC')
+          echo "generation_time=$CURRENT_TIME" >> $GITHUB_OUTPUT
+          
+          # 创建基础Clash配置
+          cat > public/clash-config.yaml << 'EOF'
+          # Clash配置文件 - 纯净IP节点
+          # 生成时间: $CURRENT_TIME
+          # 数据来源: IP Purity Checker
+          # 更新频率: 每日自动更新
+          
+          port: 7890
+          socks-port: 7891
+          allow-lan: false
+          mode: Rule
+          log-level: info
+          external-controller: 127.0.0.1:9090
+          
+          # DNS配置
+          dns:
+            enable: true
+            listen: 0.0.0.0:53
+            default-nameserver:
+              - 223.5.5.5
+              - 119.29.29.29
+            nameserver:
+              - https://doh.pub/dns-query
+              - https://dns.alidns.com/dns-query
+            fallback-filter:
+              geoip: true
+              geoip-code: CN
+          
+          # 代理配置（将通过API动态生成）
+          proxies: []
+          
+          # 代理组配置
+          proxy-groups:
+            - name: 🚀 节点选择
+              type: select
+              proxies:
+                - ♻️ 自动选择
+                - 🔯 故障转移
+                - 🎯 全球直连
+                - DIRECT
+            
+            - name: ♻️ 自动选择
+              type: url-test
+              proxies: []
+              url: http://www.gstatic.com/generate_204
+              interval: 300
+              tolerance: 50
+            
+            - name: 🔯 故障转移
+              type: fallback
+              proxies: []
+              url: http://www.gstatic.com/generate_204
+              interval: 300
+            
+            - name: 🌍 国外媒体
+              type: select
+              proxies:
+                - 🚀 节点选择
+                - ♻️ 自动选择
+                - 🎯 全球直连
+            
+            - name: 📺 哔哩哔哩
+              type: select
+              proxies:
+                - 🎯 全球直连
+                - 🚀 节点选择
+            
+            - name: 🎯 全球直连
+              type: select
+              proxies:
+                - DIRECT
+                - 🚀 节点选择
+            
+            - name: 🛑 广告拦截
+              type: select
+              proxies:
+                - REJECT
+                - DIRECT
+            
+            - name: 🐟 漏网之鱼
+              type: select
+              proxies:
+                - 🚀 节点选择
+                - 🎯 全球直连
+          
+          # 规则配置
+          rules:
+            # 广告拦截
+            - DOMAIN-SUFFIX,googlesyndication.com,🛑 广告拦截
+            - DOMAIN-SUFFIX,googleadservices.com,🛑 广告拦截
+            - DOMAIN-SUFFIX,doubleclick.net,🛑 广告拦截
+            
+            # 哔哩哔哩
+            - DOMAIN-SUFFIX,bilibili.com,📺 哔哩哔哩
+            - DOMAIN-SUFFIX,hdslb.com,📺 哔哩哔哩
+            - DOMAIN-SUFFIX,biliapi.net,📺 哔哩哔哩
+            
+            # 国外媒体
+            - DOMAIN-SUFFIX,youtube.com,🌍 国外媒体
+            - DOMAIN-SUFFIX,netflix.com,🌍 国外媒体
+            - DOMAIN-SUFFIX,twitter.com,🌍 国外媒体
+            - DOMAIN-SUFFIX,facebook.com,🌍 国外媒体
+            - DOMAIN-SUFFIX,instagram.com,🌍 国外媒体
+            - DOMAIN-SUFFIX,telegram.org,🌍 国外媒体
+            
+            # 本地网络
+            - DOMAIN-SUFFIX,local,🎯 全球直连
+            - IP-CIDR,127.0.0.0/8,🎯 全球直连
+            - IP-CIDR,172.16.0.0/12,🎯 全球直连
+            - IP-CIDR,192.168.0.0/16,🎯 全球直连
+            - IP-CIDR,10.0.0.0/8,🎯 全球直连
+            
+            # 中国大陆
+            - GEOIP,CN,🎯 全球直连
+            
+            # 其他
+            - MATCH,🐟 漏网之鱼
+          EOF
+          
+          # 替换时间戳
+          sed -i "s/\$CURRENT_TIME/$CURRENT_TIME/g" public/clash-config.yaml
+          
+          echo "✅ 基础Clash配置生成完成"
+          echo "config_size=$(wc -c < public/clash-config.yaml)" >> $GITHUB_OUTPUT
+
+      - name: Create configuration metadata
+        run: |
+          # 创建配置元数据
+          cat > public/clash-config.json << EOF
+          {
+            "name": "IP Purity Checker - Clash Config",
+            "description": "基于IP纯净度检测的Clash配置文件",
+            "version": "$(date +%Y%m%d)",
+            "generated_at": "$(date -u '+%Y-%m-%d %H:%M:%S UTC')",
+            "update_interval": "daily",
+            "total_nodes": 0,
+            "pure_nodes": 0,
+            "countries": [],
+            "download_urls": {
+              "yaml": "https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/clash-config.yaml",
+              "json": "https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/clash-config.json"
+            },
+            "usage_instructions": {
+              "clash": "将YAML文件URL添加到Clash客户端的配置订阅中",
+              "clash_for_windows": "在Profiles页面点击Download from a URL",
+              "clash_for_android": "在配置页面添加URL订阅",
+              "clash_verge": "在订阅页面添加配置链接"
+            },
+            "update_schedule": "每日UTC 18:00自动更新",
+            "source_repository": "https://github.com/twj0/ip-address-purity-checker",
+            "fork_repository": "https://github.com/${{ github.repository }}"
+          }
+          EOF
+
+      - name: Optimize configuration file
+        run: |
+          echo "优化配置文件..."
+          
+          # 检查文件大小
+          CONFIG_SIZE=$(wc -c < public/clash-config.yaml)
+          echo "配置文件大小: $CONFIG_SIZE bytes"
+          
+          # 如果文件过大，进行优化
+          if [ $CONFIG_SIZE -gt 1048576 ]; then  # 1MB
+            echo "⚠️ 配置文件过大，进行优化..."
+            
+            # 移除注释和空行以减小文件大小
+            sed -i '/^[[:space:]]*#/d; /^[[:space:]]*$/d' public/clash-config.yaml
+            
+            NEW_SIZE=$(wc -c < public/clash-config.yaml)
+            echo "优化后大小: $NEW_SIZE bytes"
+          fi
+          
+          # 验证YAML格式
+          if command -v node >/dev/null 2>&1; then
+            node -e "
+              const yaml = require('js-yaml');
+              const fs = require('fs');
+              try {
+                const config = yaml.load(fs.readFileSync('public/clash-config.yaml', 'utf8'));
+                console.log('✅ YAML格式验证通过');
+                console.log('代理组数量:', config['proxy-groups']?.length || 0);
+                console.log('规则数量:', config.rules?.length || 0);
+              } catch (e) {
+                console.error('❌ YAML格式错误:', e.message);
+                process.exit(1);
+              }
+            "
+          fi
+
+      - name: Commit and push changes
+        run: |
+          # 配置Git
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          
+          # 检查是否有变化
+          if git diff --quiet public/clash-config.yaml public/clash-config.json; then
+            echo "📝 配置文件无变化，跳过提交"
+          else
+            echo "📝 提交配置文件更新..."
+            
+            git add public/clash-config.yaml public/clash-config.json
+            git commit -m "🔄 自动更新Clash配置文件
+
+            - 生成时间: $(date -u '+%Y-%m-%d %H:%M:%S UTC')
+            - 配置大小: $(wc -c < public/clash-config.yaml) bytes
+            - 触发方式: ${{ github.event_name }}
+            - 工作流: ${{ github.workflow }}
+            
+            [skip ci]"
+            
+            git push
+            echo "✅ 配置文件已推送到仓库"
+          fi
+
+      - name: Deploy to GitHub Pages (if enabled)
+        run: |
+          # 检查是否启用了GitHub Pages
+          if curl -s -f "https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/" >/dev/null 2>&1; then
+            echo "✅ GitHub Pages已启用，配置文件将自动部署"
+            echo "📡 访问地址: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/clash-config.yaml"
+          else
+            echo "ℹ️ GitHub Pages未启用，请在仓库设置中启用以获得公共访问链接"
+          fi
+
+      - name: Create deployment summary
+        run: |
+          echo "## 📅 Clash配置生成完成" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📊 生成信息" >> $GITHUB_STEP_SUMMARY
+          echo "| 项目 | 值 |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|-----|" >> $GITHUB_STEP_SUMMARY
+          echo "| 生成时间 | ${{ steps.generate_config.outputs.generation_time }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 配置大小 | ${{ steps.generate_config.outputs.config_size }} bytes |" >> $GITHUB_STEP_SUMMARY
+          echo "| 触发方式 | ${{ github.event_name }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 仓库 | [${{ github.repository }}](https://github.com/${{ github.repository }}) |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          echo "### 📡 访问链接" >> $GITHUB_STEP_SUMMARY
+          echo "- **YAML配置**: [clash-config.yaml](https://github.com/${{ github.repository }}/blob/main/public/clash-config.yaml)" >> $GITHUB_STEP_SUMMARY
+          echo "- **JSON元数据**: [clash-config.json](https://github.com/${{ github.repository }}/blob/main/public/clash-config.json)" >> $GITHUB_STEP_SUMMARY
+          
+          if curl -s -f "https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/" >/dev/null 2>&1; then
+            echo "- **公共访问**: [https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/clash-config.yaml](https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/clash-config.yaml)" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔧 使用方法" >> $GITHUB_STEP_SUMMARY
+          echo "1. **Clash for Windows**: 在Profiles页面点击\"Download from a URL\"" >> $GITHUB_STEP_SUMMARY
+          echo "2. **Clash for Android**: 在配置页面添加URL订阅" >> $GITHUB_STEP_SUMMARY
+          echo "3. **Clash Verge**: 在订阅页面添加配置链接" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### ⏰ 更新计划" >> $GITHUB_STEP_SUMMARY
+          echo "- 自动更新时间: 每日UTC 18:00（北京时间02:00）" >> $GITHUB_STEP_SUMMARY
+          echo "- 手动触发: 在Actions页面运行此工作流" >> $GITHUB_STEP_SUMMARY
+          echo "- 配置来源: 基于每日IP纯净度检测结果" >> $GITHUB_STEP_SUMMARY
+
+  notify-completion:
+    needs: generate-clash-config
+    runs-on: ubuntu-latest
+    if: always() && github.event_name == 'schedule'
+    
+    steps:
+      - name: Send notification
+        run: |
+          echo "📅 每日Clash配置生成任务完成"
+          echo "状态: ${{ needs.generate-clash-config.result }}"
+          echo "时间: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+          
+          # 这里可以添加其他通知方式，如Webhook、邮件等

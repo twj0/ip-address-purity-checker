@@ -1,4 +1,4 @@
-name: Auto Update Fork
+name: 🔄 Auto Update Fork
 
 on:
   schedule:
@@ -10,6 +10,16 @@ on:
         description: '强制更新（忽略冲突）'
         required: false
         default: 'false'
+        type: boolean
+      notify_user:
+        description: '发送更新通知'
+        required: false
+        default: 'true'
+        type: boolean
+      backup_config:
+        description: '备份用户配置'
+        required: false
+        default: 'true'
         type: boolean
 
 jobs:
@@ -176,17 +186,17 @@ jobs:
             # 创建更新提交信息
             COMMIT_MSG="🔄 Auto-update from upstream
 
-Merged changes from twj0/ip-address-purity-checker
-Upstream commit: ${{ steps.check_updates.outputs.upstream_commit }}
+            Merged changes from twj0/ip-address-purity-checker
+            Upstream commit: ${{ steps.check_updates.outputs.upstream_commit }}
 
-Changes:
-$(cat update_log.txt || echo 'See git log for details')
+            Changes:
+            $(cat update_log.txt || echo 'See git log for details')
 
-User configurations preserved:
-- KV namespace IDs
-- API keys and tokens  
-- Custom subscription URLs
-- Personal settings"
+            User configurations preserved:
+            - KV namespace IDs
+            - API keys and tokens
+            - Custom subscription URLs
+            - Personal settings"
             
             git commit -m "$COMMIT_MSG" || true
             git push origin main
@@ -194,32 +204,65 @@ User configurations preserved:
             echo "更新推送完成"
           fi
 
-      - name: Create update summary
+      - name: Create detailed update summary
         if: steps.check_updates.outputs.has_updates == 'true'
         run: |
           echo "## 🔄 自动更新完成" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**上游仓库:** twj0/ip-address-purity-checker" >> $GITHUB_STEP_SUMMARY
-          echo "**更新时间:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
-          echo "**上游提交:** ${{ steps.check_updates.outputs.upstream_commit }}" >> $GITHUB_STEP_SUMMARY
+          echo "### 📊 更新信息" >> $GITHUB_STEP_SUMMARY
+          echo "| 项目 | 值 |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|-----|" >> $GITHUB_STEP_SUMMARY
+          echo "| 上游仓库 | [twj0/ip-address-purity-checker](https://github.com/twj0/ip-address-purity-checker) |" >> $GITHUB_STEP_SUMMARY
+          echo "| 更新时间 | $(date -u '+%Y-%m-%d %H:%M:%S UTC') |" >> $GITHUB_STEP_SUMMARY
+          echo "| 上游提交 | [\`${UPSTREAM_COMMIT:0:8}\`](https://github.com/twj0/ip-address-purity-checker/commit/${{ steps.check_updates.outputs.upstream_commit }}) |" >> $GITHUB_STEP_SUMMARY
+          echo "| 当前提交 | [\`${CURRENT_COMMIT:0:8}\`](https://github.com/${{ github.repository }}/commit/${{ steps.check_updates.outputs.current_commit }}) |" >> $GITHUB_STEP_SUMMARY
+          echo "| 更新方式 | ${{ github.event.inputs.force_update == 'true' && '强制更新' || '智能合并' }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
+
           echo "### 📝 更新内容" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          cat update_log.txt >> $GITHUB_STEP_SUMMARY || echo "无法读取更新日志" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "<details>" >> $GITHUB_STEP_SUMMARY
+          echo "<summary>点击查看详细更新日志</summary>" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### ✅ 保留的用户配置" >> $GITHUB_STEP_SUMMARY
-          echo "- KV命名空间ID和配置" >> $GITHUB_STEP_SUMMARY
-          echo "- API密钥和访问令牌" >> $GITHUB_STEP_SUMMARY
-          echo "- 自定义订阅链接" >> $GITHUB_STEP_SUMMARY
-          echo "- 个人设置和环境变量" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          if [ -f "update_log.txt" ]; then
+            cat update_log.txt >> $GITHUB_STEP_SUMMARY
+          else
+            echo "无法读取更新日志，请查看Git提交历史" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "</details>" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 🚀 下一步" >> $GITHUB_STEP_SUMMARY
-          echo "如果您使用Cloudflare部署，建议运行以下命令更新部署：" >> $GITHUB_STEP_SUMMARY
+
+          echo "### ✅ 保护的用户配置" >> $GITHUB_STEP_SUMMARY
+          echo "以下配置在更新过程中被自动保护：" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- 🔑 **KV命名空间配置**: wrangler.toml中的命名空间ID" >> $GITHUB_STEP_SUMMARY
+          echo "- 🔐 **API密钥设置**: ProxyCheck.io和IPinfo.io密钥" >> $GITHUB_STEP_SUMMARY
+          echo "- 📡 **订阅链接**: 存储在KV中的私人订阅链接" >> $GITHUB_STEP_SUMMARY
+          echo "- ⚙️ **环境变量**: 自定义的环境变量配置" >> $GITHUB_STEP_SUMMARY
+          echo "- 📄 **配置文件**: config.json和其他个人配置" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          echo "### 🚀 建议的后续操作" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "#### 1. 验证更新" >> $GITHUB_STEP_SUMMARY
+          echo "- 访问您的Web界面确认功能正常" >> $GITHUB_STEP_SUMMARY
+          echo "- 检查订阅管理器是否工作正常" >> $GITHUB_STEP_SUMMARY
+          echo "- 测试API密钥配置是否保留" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "#### 2. 重新部署（如需要）" >> $GITHUB_STEP_SUMMARY
           echo '```bash' >> $GITHUB_STEP_SUMMARY
-          echo 'wrangler deploy  # 更新Worker' >> $GITHUB_STEP_SUMMARY
-          echo 'wrangler pages deploy public --project-name ip-purity-checker  # 更新Pages' >> $GITHUB_STEP_SUMMARY
+          echo '# 更新Worker（定时任务）' >> $GITHUB_STEP_SUMMARY
+          echo 'wrangler deploy' >> $GITHUB_STEP_SUMMARY
+          echo '' >> $GITHUB_STEP_SUMMARY
+          echo '# 更新Pages（Web界面）' >> $GITHUB_STEP_SUMMARY
+          echo 'wrangler pages deploy public --project-name ip-purity-checker' >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "#### 3. 检查新功能" >> $GITHUB_STEP_SUMMARY
+          echo "- 查看[更新日志](https://github.com/twj0/ip-address-purity-checker/releases)了解新功能" >> $GITHUB_STEP_SUMMARY
+          echo "- 阅读[文档](https://github.com/twj0/ip-address-purity-checker#readme)了解使用方法" >> $GITHUB_STEP_SUMMARY
+          echo "- 如有问题请[提交Issue](https://github.com/twj0/ip-address-purity-checker/issues)" >> $GITHUB_STEP_SUMMARY
 
       - name: No updates found
         if: steps.check_updates.outputs.has_updates == 'false'
