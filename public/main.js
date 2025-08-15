@@ -1,5 +1,5 @@
 // 标签页切换函数
-function switchTab(tabName) {
+function switchTab(event, tabName) {
     // 隐藏所有标签页内容
     document.querySelectorAll('.tab-content').forEach(function(content) {
         content.classList.remove('active');
@@ -12,7 +12,7 @@ function switchTab(tabName) {
 
     // 显示选中的标签页
     document.getElementById(tabName).classList.add('active');
-    event.target.classList.add('active');
+    event.currentTarget.classList.add('active');
 }
 
 // 检查单个IP
