@@ -68,6 +68,7 @@
     </style>
 </head>
 <body>
+    <script src="public/main.js"></script>
     <h1>🧪 JavaScript功能测试页面</h1>
     <p>此页面用于测试IP纯净度检查工具的JavaScript功能是否正常工作。</p>
 
@@ -130,23 +131,6 @@
             counter: 0,
             results: []
         };
-
-        // 标签页切换函数
-        function switchTab(tabName) {
-            // 隐藏所有标签页内容
-            document.querySelectorAll('.tab-content').forEach(function(content) {
-                content.classList.remove('active');
-            });
-
-            // 移除所有标签页的active类
-            document.querySelectorAll('.tab').forEach(function(tab) {
-                tab.classList.remove('active');
-            });
-
-            // 显示选中的标签页
-            document.getElementById(tabName).classList.add('active');
-            event.target.classList.add('active');
-        }
 
         // 显示提示信息
         function showAlert(message, type) {

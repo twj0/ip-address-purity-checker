@@ -271,6 +271,7 @@
     </style>
 </head>
 <body>
+    <script src="main.js"></script>
     <div class="container">
         <div class="header">
             <h1>🔐 订阅链接管理器</h1>
@@ -329,9 +330,11 @@
                 <h2>📋 我的订阅列表</h2>
                 <div class="subscription-actions" style="margin-bottom: 20px;">
                     <button class="btn" onclick="loadSubscriptions()">🔄 刷新列表</button>
+                    <button class="btn" onclick="checkSingleIP()">🔍 检查单个IP</button>
                     <button class="btn btn-success" onclick="deduplicateSubscriptions()">🧹 去重处理</button>
                     <button class="btn btn-danger" onclick="clearAllSubscriptions()">🗑️ 清空所有</button>
                 </div>
+                <div id="ipCheckResult" class="result" style="display: none;"></div>
                 
                 <div class="loading" id="loading">
                     <div class="spinner"></div>
