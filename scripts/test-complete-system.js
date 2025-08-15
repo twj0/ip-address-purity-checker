@@ -1,7 +1,7 @@
 // 完整系统功能测试脚本
 const https = require('https');
 
-const WORKER_URL = 'https://purity.ttwwjj.ddns-ip.net';
+const WORKER_URL = 'https://ip-purity-checker.3150774524.workers.dev';
 
 console.log('🧪 开始完整系统功能测试...\n');
 

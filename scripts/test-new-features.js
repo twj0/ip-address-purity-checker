@@ -1,7 +1,7 @@
 // 测试新增功能：手动立即执行和IP检测缓存
 const https = require('https');
 
-const WORKER_URL = 'https://purity.ttwwjj.ddns-ip.net';
+const WORKER_URL = 'https://ip-purity-checker.3150774524.workers.dev';
 
 console.log('🧪 测试新增功能：手动立即执行和IP检测缓存...\n');
 
