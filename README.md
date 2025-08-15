@@ -38,7 +38,7 @@ wrangler --version
 ### 步骤2: 登录Cloudflare
 ```bash
 # 登录到Cloudflare账户
-wrangler auth login
+wrangler login
 
 # 验证登录状态
 wrangler whoami
