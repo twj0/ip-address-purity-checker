@@ -43,6 +43,24 @@ export default {
             case '/api/cache-clear':
                 return handleCacheClear(request, env);
 
+            case '/api/user-config/check':
+                return handleUserConfigCheck(request, env);
+
+            case '/api/user-config/register':
+                return handleUserConfigRegister(request, env);
+
+            case '/api/user-config/login':
+                return handleUserConfigLogin(request, env);
+
+            case '/api/user-config/save':
+                return handleUserConfigSave(request, env);
+
+            case '/api/user-config/load':
+                return handleUserConfigLoad(request, env);
+
+            case '/api/user-config/export':
+                return handleUserConfigExport(request, env);
+
             default:
                 return new Response('Not Found', { status: 404 });
         }
@@ -238,7 +256,150 @@ function getHomePage() {
 
         <div id="settings" class="tab-content">
             <div class="section">
-                <h3>⚙️ API密钥管理增强版</h3>
+                <h3>⚙️ 设置管理</h3>
+
+                <!-- 用户配置云同步 -->
+                <div style="background: #e3f2fd; padding: 20px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #2196f3;">
+                    <h4 style="margin-bottom: 15px; color: #1976d2;">☁️ 云端配置同步</h4>
+                    <p style="margin-bottom: 15px; color: #666; font-size: 14px;">
+                        将您的订阅链接和API密钥安全地保存到云端，实现跨设备/浏览器同步访问。
+                        <br>数据采用AES-256加密，只有您知道密码才能访问。
+                    </p>
+
+                    <!-- 当前状态 -->
+                    <div id="cloudSyncStatus" style="background: #f5f5f5; padding: 15px; border-radius: 6px; margin-bottom: 15px;">
+                        <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                            <span id="syncStatusIcon">🔒</span>
+                            <span id="syncStatusText" style="margin-left: 10px; font-weight: bold;">本地存储模式</span>
+                        </div>
+                        <div id="syncStatusDetails" style="font-size: 12px; color: #666;">
+                            配置数据仅保存在当前浏览器中
+                        </div>
+                    </div>
+
+                    <!-- 云同步操作 -->
+                    <div id="cloudSyncActions">
+                        <!-- 登录/注册区域 -->
+                        <div id="loginSection" style="display: block;">
+                            <div class="form-group">
+                                <label for="userId">用户ID (16位字符):</label>
+                                <div style="display: flex; gap: 10px;">
+                                    <input type="text" id="userId" placeholder="输入您的用户ID" style="flex: 1;" maxlength="16">
+                                    <button class="btn btn-secondary" onclick="generateNewUserId()">生成新ID</button>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="userPassword">配置密码:</label>
+                                <input type="password" id="userPassword" placeholder="输入配置密码">
+                            </div>
+                            <div style="margin-bottom: 15px;">
+                                <button class="btn" onclick="loginCloudSync()">🔓 登录云同步</button>
+                                <button class="btn btn-secondary" onclick="registerCloudSync()">📝 注册新用户</button>
+                                <button class="btn btn-secondary" onclick="checkUserExists()">🔍 检查用户</button>
+                            </div>
+                        </div>
+
+                        <!-- 已登录区域 -->
+                        <div id="loggedInSection" style="display: none;">
+                            <div style="margin-bottom: 15px;">
+                                <button class="btn" onclick="saveToCloud()">☁️ 保存到云端</button>
+                                <button class="btn btn-secondary" onclick="loadFromCloud()">📥 从云端加载</button>
+                                <button class="btn btn-secondary" onclick="exportCloudConfig()">📤 导出配置</button>
+                                <button class="btn btn-danger" onclick="logoutCloudSync()">🚪 退出登录</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="cloudSyncResult" class="result" style="display: none;"></div>
+                </div>
+
+                <!-- 本地数据迁移 -->
+                <div style="background: #fff3e0; padding: 20px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #ff9800;">
+                    <h4 style="margin-bottom: 15px; color: #f57c00;">📦 数据迁移工具</h4>
+                    <p style="margin-bottom: 15px; color: #666; font-size: 14px;">
+                        将现有的本地配置数据迁移到云端，或在不同设备间传输配置。
+                    </p>
+                    <div style="margin-bottom: 15px;">
+                        <button class="btn btn-secondary" onclick="migrateLocalToCloud()">🔄 迁移本地数据到云端</button>
+                        <button class="btn btn-secondary" onclick="exportLocalConfig()">📤 导出本地配置</button>
+                        <button class="btn btn-secondary" onclick="importLocalConfig()">📥 导入本地配置</button>
+                        <button class="btn btn-secondary" onclick="clearLocalData()">🗑️ 清除本地数据</button>
+                    </div>
+                    <input type="file" id="importConfigFile" accept=".json" style="display: none;" onchange="handleConfigImport(event)">
+                    <div id="migrationResult" class="result" style="display: none;"></div>
+                </div>
+
+                <!-- 用户配置云同步 -->
+                <div style="background: #e3f2fd; padding: 20px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #2196f3;">
+                    <h4 style="margin-bottom: 15px; color: #1976d2;">☁️ 云端配置同步</h4>
+                    <p style="margin-bottom: 15px; color: #666; font-size: 14px;">
+                        将您的订阅链接和API密钥安全地保存到云端，实现跨设备/浏览器同步访问。
+                        <br>数据采用AES-256加密，只有您知道密码才能访问。
+                    </p>
+
+                    <!-- 当前状态 -->
+                    <div id="cloudSyncStatus" style="background: #f5f5f5; padding: 15px; border-radius: 6px; margin-bottom: 15px;">
+                        <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                            <span id="syncStatusIcon">🔒</span>
+                            <span id="syncStatusText" style="margin-left: 10px; font-weight: bold;">本地存储模式</span>
+                        </div>
+                        <div id="syncStatusDetails" style="font-size: 12px; color: #666;">
+                            配置数据仅保存在当前浏览器中
+                        </div>
+                    </div>
+
+                    <!-- 云同步操作 -->
+                    <div id="cloudSyncActions">
+                        <!-- 登录/注册区域 -->
+                        <div id="loginSection" style="display: block;">
+                            <div class="form-group">
+                                <label for="userId">用户ID (16位字符):</label>
+                                <div style="display: flex; gap: 10px;">
+                                    <input type="text" id="userId" placeholder="输入您的用户ID" style="flex: 1;" maxlength="16">
+                                    <button class="btn btn-secondary" onclick="generateNewUserId()">生成新ID</button>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="userPassword">配置密码:</label>
+                                <input type="password" id="userPassword" placeholder="输入配置密码">
+                            </div>
+                            <div style="margin-bottom: 15px;">
+                                <button class="btn" onclick="loginCloudSync()">🔓 登录云同步</button>
+                                <button class="btn btn-secondary" onclick="registerCloudSync()">📝 注册新用户</button>
+                                <button class="btn btn-secondary" onclick="checkUserExists()">🔍 检查用户</button>
+                            </div>
+                        </div>
+
+                        <!-- 已登录区域 -->
+                        <div id="loggedInSection" style="display: none;">
+                            <div style="margin-bottom: 15px;">
+                                <button class="btn" onclick="saveToCloud()">☁️ 保存到云端</button>
+                                <button class="btn btn-secondary" onclick="loadFromCloud()">📥 从云端加载</button>
+                                <button class="btn btn-secondary" onclick="exportCloudConfig()">📤 导出配置</button>
+                                <button class="btn btn-danger" onclick="logoutCloudSync()">🚪 退出登录</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="cloudSyncResult" class="result" style="display: none;"></div>
+                </div>
+
+                <!-- 本地数据迁移 -->
+                <div style="background: #fff3e0; padding: 20px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #ff9800;">
+                    <h4 style="margin-bottom: 15px; color: #f57c00;">📦 数据迁移工具</h4>
+                    <p style="margin-bottom: 15px; color: #666; font-size: 14px;">
+                        将现有的本地配置数据迁移到云端，或在不同设备间传输配置。
+                    </p>
+                    <div style="margin-bottom: 15px;">
+                        <button class="btn btn-secondary" onclick="migrateLocalToCloud()">🔄 迁移本地数据到云端</button>
+                        <button class="btn btn-secondary" onclick="exportLocalConfig()">📤 导出本地配置</button>
+                        <button class="btn btn-secondary" onclick="importLocalConfig()">📥 导入本地配置</button>
+                    </div>
+                    <input type="file" id="importConfigFile" accept=".json" style="display: none;" onchange="handleConfigImport(event)">
+                    <div id="migrationResult" class="result" style="display: none;"></div>
+                </div>
+
+                <h4 style="margin-bottom: 15px; color: #2c3e50;">🔑 API密钥管理</h4>
 
                 <!-- ProxyCheck.io 多密钥管理 -->
                 <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
@@ -1586,8 +1747,528 @@ function getHomePage() {
             // 延迟加载缓存统计，避免影响主要功能
             setTimeout(function() {
                 refreshCacheStats();
+                initCloudSync();
             }, 2000);
         });
+
+        // ==================== 云端配置同步功能 ====================
+
+        // 云同步状态
+        var cloudSyncState = {
+            isLoggedIn: false,
+            userId: null,
+            password: null,
+            lastSync: null
+        };
+
+        // 初始化云同步
+        function initCloudSync() {
+            // 检查是否有保存的登录状态
+            var savedState = localStorage.getItem('cloudSyncState');
+            if (savedState) {
+                try {
+                    cloudSyncState = JSON.parse(savedState);
+                    if (cloudSyncState.isLoggedIn && cloudSyncState.userId) {
+                        updateCloudSyncUI(true);
+                        document.getElementById('userId').value = cloudSyncState.userId;
+                    }
+                } catch (e) {
+                    console.error('加载云同步状态失败:', e);
+                }
+            }
+        }
+
+        // 更新云同步UI状态
+        function updateCloudSyncUI(isLoggedIn) {
+            var loginSection = document.getElementById('loginSection');
+            var loggedInSection = document.getElementById('loggedInSection');
+            var statusIcon = document.getElementById('syncStatusIcon');
+            var statusText = document.getElementById('syncStatusText');
+            var statusDetails = document.getElementById('syncStatusDetails');
+
+            if (isLoggedIn) {
+                loginSection.style.display = 'none';
+                loggedInSection.style.display = 'block';
+                statusIcon.textContent = '☁️';
+                statusText.textContent = '云端同步模式';
+                statusDetails.textContent = '用户ID: ' + cloudSyncState.userId + ' | 最后同步: ' +
+                    (cloudSyncState.lastSync ? new Date(cloudSyncState.lastSync).toLocaleString() : '从未同步');
+            } else {
+                loginSection.style.display = 'block';
+                loggedInSection.style.display = 'none';
+                statusIcon.textContent = '🔒';
+                statusText.textContent = '本地存储模式';
+                statusDetails.textContent = '配置数据仅保存在当前浏览器中';
+            }
+        }
+
+        // 生成新用户ID
+        function generateNewUserId() {
+            var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+            var userId = '';
+            for (var i = 0; i < 16; i++) {
+                userId += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            document.getElementById('userId').value = userId;
+            showAlert('已生成新的用户ID: ' + userId, 'success');
+        }
+
+        // 检查用户是否存在
+        function checkUserExists() {
+            var userId = document.getElementById('userId').value.trim();
+
+            if (!userId || userId.length !== 16) {
+                showAlert('请输入16位用户ID', 'error');
+                return;
+            }
+
+            fetch('/api/user-config/check', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId: userId })
+            })
+            .then(function(response) {
+                return response.json();
+            })
+            .then(function(data) {
+                if (data.success) {
+                    if (data.exists) {
+                        showAlert('用户ID已存在，可以登录', 'success');
+                    } else {
+                        showAlert('用户ID不存在，可以注册', 'info');
+                    }
+                } else {
+                    showAlert('检查失败: ' + data.error, 'error');
+                }
+            })
+            .catch(function(error) {
+                showAlert('检查失败: ' + error.message, 'error');
+            });
+        }
+
+        // 注册新用户
+        function registerCloudSync() {
+            var userId = document.getElementById('userId').value.trim();
+            var password = document.getElementById('userPassword').value;
+
+            if (!userId || userId.length !== 16) {
+                showAlert('请输入16位用户ID', 'error');
+                return;
+            }
+
+            if (!password || password.length < 6) {
+                showAlert('密码至少需要6位字符', 'error');
+                return;
+            }
+
+            // 获取当前本地配置
+            var currentConfig = {
+                subscriptions: subscriptions,
+                apiKeysManager: apiKeysManager,
+                settings: {}
+            };
+
+            var resultDiv = document.getElementById('cloudSyncResult');
+            resultDiv.innerHTML = '<div style="color: #666;">正在注册用户并保存配置...</div>';
+            resultDiv.style.display = 'block';
+
+            fetch('/api/user-config/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    userId: userId,
+                    password: password,
+                    config: currentConfig
+                })
+            })
+            .then(function(response) {
+                return response.json();
+            })
+            .then(function(data) {
+                if (data.success) {
+                    cloudSyncState = {
+                        isLoggedIn: true,
+                        userId: userId,
+                        password: password,
+                        lastSync: new Date().toISOString()
+                    };
+                    localStorage.setItem('cloudSyncState', JSON.stringify(cloudSyncState));
+
+                    updateCloudSyncUI(true);
+                    resultDiv.innerHTML = '<div style="color: #28a745;">✅ 注册成功！配置已保存到云端</div>';
+                    showAlert('注册成功！', 'success');
+                } else {
+                    resultDiv.innerHTML = '<div style="color: #dc3545;">❌ 注册失败: ' + data.error + '</div>';
+                    showAlert('注册失败: ' + data.error, 'error');
+                }
+            })
+            .catch(function(error) {
+                resultDiv.innerHTML = '<div style="color: #dc3545;">❌ 注册失败: ' + error.message + '</div>';
+                showAlert('注册失败: ' + error.message, 'error');
+            });
+        }
+
+        // 登录云同步
+        function loginCloudSync() {
+            var userId = document.getElementById('userId').value.trim();
+            var password = document.getElementById('userPassword').value;
+
+            if (!userId || userId.length !== 16) {
+                showAlert('请输入16位用户ID', 'error');
+                return;
+            }
+
+            if (!password) {
+                showAlert('请输入密码', 'error');
+                return;
+            }
+
+            var resultDiv = document.getElementById('cloudSyncResult');
+            resultDiv.innerHTML = '<div style="color: #666;">正在登录...</div>';
+            resultDiv.style.display = 'block';
+
+            fetch('/api/user-config/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    userId: userId,
+                    password: password
+                })
+            })
+            .then(function(response) {
+                return response.json();
+            })
+            .then(function(data) {
+                if (data.success) {
+                    cloudSyncState = {
+                        isLoggedIn: true,
+                        userId: userId,
+                        password: password,
+                        lastSync: data.config.lastUpdated
+                    };
+                    localStorage.setItem('cloudSyncState', JSON.stringify(cloudSyncState));
+
+                    updateCloudSyncUI(true);
+                    resultDiv.innerHTML = '<div style="color: #28a745;">✅ 登录成功！</div>';
+                    showAlert('登录成功！', 'success');
+                } else {
+                    resultDiv.innerHTML = '<div style="color: #dc3545;">❌ 登录失败: ' + data.error + '</div>';
+                    showAlert('登录失败: ' + data.error, 'error');
+                }
+            })
+            .catch(function(error) {
+                resultDiv.innerHTML = '<div style="color: #dc3545;">❌ 登录失败: ' + error.message + '</div>';
+                showAlert('登录失败: ' + error.message, 'error');
+            });
+        }
+
+        // 保存到云端
+        function saveToCloud() {
+            if (!cloudSyncState.isLoggedIn) {
+                showAlert('请先登录云同步', 'error');
+                return;
+            }
+
+            var currentConfig = {
+                subscriptions: subscriptions,
+                apiKeysManager: apiKeysManager,
+                settings: {}
+            };
+
+            var resultDiv = document.getElementById('cloudSyncResult');
+            resultDiv.innerHTML = '<div style="color: #666;">正在保存到云端...</div>';
+            resultDiv.style.display = 'block';
+
+            fetch('/api/user-config/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    userId: cloudSyncState.userId,
+                    password: cloudSyncState.password,
+                    config: currentConfig
+                })
+            })
+            .then(function(response) {
+                return response.json();
+            })
+            .then(function(data) {
+                if (data.success) {
+                    cloudSyncState.lastSync = data.lastUpdated;
+                    localStorage.setItem('cloudSyncState', JSON.stringify(cloudSyncState));
+
+                    updateCloudSyncUI(true);
+                    resultDiv.innerHTML = '<div style="color: #28a745;">✅ 配置已保存到云端！<br>' +
+                        '配置大小: ' + (data.configSize || 0) + ' 字节</div>';
+                    showAlert('配置已保存到云端！', 'success');
+                } else {
+                    resultDiv.innerHTML = '<div style="color: #dc3545;">❌ 保存失败: ' + data.error + '</div>';
+                    showAlert('保存失败: ' + data.error, 'error');
+                }
+            })
+            .catch(function(error) {
+                resultDiv.innerHTML = '<div style="color: #dc3545;">❌ 保存失败: ' + error.message + '</div>';
+                showAlert('保存失败: ' + error.message, 'error');
+            });
+        }
+
+        // 从云端加载
+        function loadFromCloud() {
+            if (!cloudSyncState.isLoggedIn) {
+                showAlert('请先登录云同步', 'error');
+                return;
+            }
+
+            if (!confirm('从云端加载配置将覆盖当前的本地配置，确定继续吗？')) {
+                return;
+            }
+
+            var resultDiv = document.getElementById('cloudSyncResult');
+            resultDiv.innerHTML = '<div style="color: #666;">正在从云端加载...</div>';
+            resultDiv.style.display = 'block';
+
+            fetch('/api/user-config/load', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    userId: cloudSyncState.userId,
+                    password: cloudSyncState.password
+                })
+            })
+            .then(function(response) {
+                return response.json();
+            })
+            .then(function(data) {
+                if (data.success) {
+                    // 更新本地配置
+                    subscriptions = data.config.subscriptions || [];
+                    apiKeysManager = data.config.apiKeysManager || { proxycheck: { keys: [] }, ipinfo: { tokens: [] } };
+
+                    // 保存到localStorage作为备份
+                    saveAllSettings();
+
+                    // 刷新界面
+                    loadSubscriptions();
+                    loadAPIKeys();
+
+                    cloudSyncState.lastSync = data.config.lastUpdated;
+                    localStorage.setItem('cloudSyncState', JSON.stringify(cloudSyncState));
+
+                    updateCloudSyncUI(true);
+                    resultDiv.innerHTML = '<div style="color: #28a745;">✅ 配置已从云端加载！<br>' +
+                        '订阅数量: ' + subscriptions.length + ' | API密钥数量: ' +
+                        ((apiKeysManager.proxycheck?.keys?.length || 0) + (apiKeysManager.ipinfo?.tokens?.length || 0)) + '</div>';
+                    showAlert('配置已从云端加载！', 'success');
+                } else {
+                    resultDiv.innerHTML = '<div style="color: #dc3545;">❌ 加载失败: ' + data.error + '</div>';
+                    showAlert('加载失败: ' + data.error, 'error');
+                }
+            })
+            .catch(function(error) {
+                resultDiv.innerHTML = '<div style="color: #dc3545;">❌ 加载失败: ' + error.message + '</div>';
+                showAlert('加载失败: ' + error.message, 'error');
+            });
+        }
+
+        // 退出登录
+        function logoutCloudSync() {
+            if (confirm('确定要退出云同步吗？本地配置不会被删除。')) {
+                cloudSyncState = {
+                    isLoggedIn: false,
+                    userId: null,
+                    password: null,
+                    lastSync: null
+                };
+                localStorage.removeItem('cloudSyncState');
+
+                updateCloudSyncUI(false);
+                document.getElementById('userId').value = '';
+                document.getElementById('userPassword').value = '';
+                document.getElementById('cloudSyncResult').style.display = 'none';
+
+                showAlert('已退出云同步', 'info');
+            }
+        }
+
+        // ==================== 数据迁移功能 ====================
+
+        // 迁移本地数据到云端
+        function migrateLocalToCloud() {
+            if (!cloudSyncState.isLoggedIn) {
+                showAlert('请先登录云同步', 'error');
+                return;
+            }
+
+            if (subscriptions.length === 0 &&
+                (apiKeysManager.proxycheck?.keys?.length || 0) === 0 &&
+                (apiKeysManager.ipinfo?.tokens?.length || 0) === 0) {
+                showAlert('没有本地数据需要迁移', 'info');
+                return;
+            }
+
+            if (!confirm('确定要将本地数据迁移到云端吗？这将覆盖云端的现有配置。')) {
+                return;
+            }
+
+            saveToCloud(); // 复用保存到云端的功能
+        }
+
+        // 导出本地配置
+        function exportLocalConfig() {
+            var config = {
+                subscriptions: subscriptions,
+                apiKeysManager: apiKeysManager,
+                settings: {},
+                exportTime: new Date().toISOString(),
+                version: '2.0'
+            };
+
+            var dataStr = JSON.stringify(config, null, 2);
+            var dataBlob = new Blob([dataStr], { type: 'application/json' });
+
+            var link = document.createElement('a');
+            link.href = URL.createObjectURL(dataBlob);
+            link.download = 'ip-purity-checker-config-' + new Date().toISOString().split('T')[0] + '.json';
+            link.click();
+
+            var resultDiv = document.getElementById('migrationResult');
+            resultDiv.innerHTML = '<div style="color: #28a745;">✅ 配置已导出！<br>' +
+                '订阅数量: ' + subscriptions.length + ' | API密钥数量: ' +
+                ((apiKeysManager.proxycheck?.keys?.length || 0) + (apiKeysManager.ipinfo?.tokens?.length || 0)) + '</div>';
+            resultDiv.style.display = 'block';
+
+            showAlert('配置文件已导出', 'success');
+        }
+
+        // 导入本地配置
+        function importLocalConfig() {
+            document.getElementById('importConfigFile').click();
+        }
+
+        // 处理配置文件导入
+        function handleConfigImport(event) {
+            var file = event.target.files[0];
+            if (!file) return;
+
+            var reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    var config = JSON.parse(e.target.result);
+
+                    // 验证配置格式
+                    if (!config.subscriptions && !config.apiKeysManager) {
+                        throw new Error('无效的配置文件格式');
+                    }
+
+                    if (!confirm('导入配置将覆盖当前的本地配置，确定继续吗？')) {
+                        return;
+                    }
+
+                    // 导入配置
+                    if (config.subscriptions) {
+                        subscriptions = config.subscriptions;
+                    }
+                    if (config.apiKeysManager) {
+                        apiKeysManager = config.apiKeysManager;
+                    }
+
+                    // 保存到localStorage
+                    saveAllSettings();
+
+                    // 刷新界面
+                    loadSubscriptions();
+                    loadAPIKeys();
+
+                    var resultDiv = document.getElementById('migrationResult');
+                    resultDiv.innerHTML = '<div style="color: #28a745;">✅ 配置已导入！<br>' +
+                        '订阅数量: ' + subscriptions.length + ' | API密钥数量: ' +
+                        ((apiKeysManager.proxycheck?.keys?.length || 0) + (apiKeysManager.ipinfo?.tokens?.length || 0)) + '</div>';
+                    resultDiv.style.display = 'block';
+
+                    showAlert('配置已成功导入', 'success');
+
+                } catch (error) {
+                    var resultDiv = document.getElementById('migrationResult');
+                    resultDiv.innerHTML = '<div style="color: #dc3545;">❌ 导入失败: ' + error.message + '</div>';
+                    resultDiv.style.display = 'block';
+
+                    showAlert('导入失败: ' + error.message, 'error');
+                }
+            };
+            reader.readAsText(file);
+
+            // 清除文件选择
+            event.target.value = '';
+        }
+
+        // 清除本地数据
+        function clearLocalData() {
+            if (!confirm('确定要清除所有本地配置数据吗？此操作不可恢复！')) {
+                return;
+            }
+
+            if (!confirm('最后确认：这将删除所有订阅链接和API密钥，确定继续吗？')) {
+                return;
+            }
+
+            // 清除数据
+            subscriptions = [];
+            apiKeysManager = {
+                proxycheck: { keys: [], strategy: 'round-robin', currentIndex: 0 },
+                ipinfo: { tokens: [], strategy: 'round-robin', currentIndex: 0 }
+            };
+
+            // 清除localStorage
+            localStorage.removeItem('subscriptions');
+            localStorage.removeItem('apiKeysManager');
+
+            // 刷新界面
+            loadSubscriptions();
+            loadAPIKeys();
+
+            var resultDiv = document.getElementById('migrationResult');
+            resultDiv.innerHTML = '<div style="color: #28a745;">✅ 本地数据已清除</div>';
+            resultDiv.style.display = 'block';
+
+            showAlert('本地数据已清除', 'success');
+        }
+
+        // 导出云端配置
+        function exportCloudConfig() {
+            if (!cloudSyncState.isLoggedIn) {
+                showAlert('请先登录云同步', 'error');
+                return;
+            }
+
+            fetch('/api/user-config/export', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    userId: cloudSyncState.userId,
+                    password: cloudSyncState.password
+                })
+            })
+            .then(function(response) {
+                return response.json();
+            })
+            .then(function(data) {
+                if (data.success) {
+                    var dataStr = JSON.stringify(data.config, null, 2);
+                    var dataBlob = new Blob([dataStr], { type: 'application/json' });
+
+                    var link = document.createElement('a');
+                    link.href = URL.createObjectURL(dataBlob);
+                    link.download = 'ip-purity-checker-cloud-config-' + cloudSyncState.userId + '.json';
+                    link.click();
+
+                    showAlert('云端配置已导出', 'success');
+                } else {
+                    showAlert('导出失败: ' + data.error, 'error');
+                }
+            })
+            .catch(function(error) {
+                showAlert('导出失败: ' + error.message, 'error');
+            });
+        }
     </script>
 </body>
 </html>`;
@@ -2641,6 +3322,313 @@ function isValidIP(ip) {
     return ipRegex.test(ip);
 }
 
+// ==================== 用户配置持久化存储系统 ====================
+
+// 用户配置存储配置
+const USER_CONFIG = {
+    KEY_PREFIX: 'user_config_',
+    ENCRYPTION_KEY_LENGTH: 32,
+    USER_ID_LENGTH: 16,
+    MAX_CONFIG_SIZE: 1024 * 1024, // 1MB限制
+    BACKUP_RETENTION_DAYS: 30
+};
+
+// 简单的加密/解密函数（使用Web Crypto API的替代实现）
+async function encryptData(data, password) {
+    try {
+        // 生成盐值
+        const salt = crypto.getRandomValues(new Uint8Array(16));
+
+        // 使用密码和盐值生成密钥
+        const encoder = new TextEncoder();
+        const keyMaterial = await crypto.subtle.importKey(
+            'raw',
+            encoder.encode(password),
+            { name: 'PBKDF2' },
+            false,
+            ['deriveKey']
+        );
+
+        const key = await crypto.subtle.deriveKey(
+            {
+                name: 'PBKDF2',
+                salt: salt,
+                iterations: 100000,
+                hash: 'SHA-256'
+            },
+            keyMaterial,
+            { name: 'AES-GCM', length: 256 },
+            false,
+            ['encrypt']
+        );
+
+        // 加密数据
+        const iv = crypto.getRandomValues(new Uint8Array(12));
+        const encodedData = encoder.encode(JSON.stringify(data));
+        const encrypted = await crypto.subtle.encrypt(
+            { name: 'AES-GCM', iv: iv },
+            key,
+            encodedData
+        );
+
+        // 组合结果
+        const result = new Uint8Array(salt.length + iv.length + encrypted.byteLength);
+        result.set(salt, 0);
+        result.set(iv, salt.length);
+        result.set(new Uint8Array(encrypted), salt.length + iv.length);
+
+        return btoa(String.fromCharCode(...result));
+    } catch (error) {
+        console.error('数据加密失败:', error);
+        throw new Error('数据加密失败');
+    }
+}
+
+async function decryptData(encryptedData, password) {
+    try {
+        // 解码Base64
+        const data = new Uint8Array(atob(encryptedData).split('').map(c => c.charCodeAt(0)));
+
+        // 提取盐值、IV和加密数据
+        const salt = data.slice(0, 16);
+        const iv = data.slice(16, 28);
+        const encrypted = data.slice(28);
+
+        // 重新生成密钥
+        const encoder = new TextEncoder();
+        const keyMaterial = await crypto.subtle.importKey(
+            'raw',
+            encoder.encode(password),
+            { name: 'PBKDF2' },
+            false,
+            ['deriveKey']
+        );
+
+        const key = await crypto.subtle.deriveKey(
+            {
+                name: 'PBKDF2',
+                salt: salt,
+                iterations: 100000,
+                hash: 'SHA-256'
+            },
+            keyMaterial,
+            { name: 'AES-GCM', length: 256 },
+            false,
+            ['decrypt']
+        );
+
+        // 解密数据
+        const decrypted = await crypto.subtle.decrypt(
+            { name: 'AES-GCM', iv: iv },
+            key,
+            encrypted
+        );
+
+        const decoder = new TextDecoder();
+        return JSON.parse(decoder.decode(decrypted));
+    } catch (error) {
+        console.error('数据解密失败:', error);
+        throw new Error('数据解密失败或密码错误');
+    }
+}
+
+// 生成用户ID
+function generateUserId() {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let result = '';
+    for (let i = 0; i < USER_CONFIG.USER_ID_LENGTH; i++) {
+        result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+}
+
+// 验证用户ID格式
+function isValidUserId(userId) {
+    return typeof userId === 'string' &&
+           userId.length === USER_CONFIG.USER_ID_LENGTH &&
+           /^[A-Za-z0-9]+$/.test(userId);
+}
+
+// 生成配置密钥
+function generateConfigKey() {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
+    let result = '';
+    for (let i = 0; i < USER_CONFIG.ENCRYPTION_KEY_LENGTH; i++) {
+        result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+}
+
+// 保存用户配置到KV存储
+async function saveUserConfig(userId, password, configData, env) {
+    if (!env.IP_CACHE) {
+        throw new Error('KV存储未配置');
+    }
+
+    if (!isValidUserId(userId)) {
+        throw new Error('无效的用户ID格式');
+    }
+
+    try {
+        // 准备配置数据
+        const userConfig = {
+            userId: userId,
+            subscriptions: configData.subscriptions || [],
+            apiKeysManager: configData.apiKeysManager || { proxycheck: { keys: [] }, ipinfo: { tokens: [] } },
+            settings: configData.settings || {},
+            lastUpdated: new Date().toISOString(),
+            version: '2.0'
+        };
+
+        // 检查配置大小
+        const configSize = JSON.stringify(userConfig).length;
+        if (configSize > USER_CONFIG.MAX_CONFIG_SIZE) {
+            throw new Error('配置数据过大，请减少订阅数量或API密钥数量');
+        }
+
+        // 加密配置数据
+        const encryptedConfig = await encryptData(userConfig, password);
+
+        // 保存到KV存储
+        const configKey = USER_CONFIG.KEY_PREFIX + userId;
+        await env.IP_CACHE.put(configKey, encryptedConfig, {
+            expirationTtl: USER_CONFIG.BACKUP_RETENTION_DAYS * 24 * 60 * 60
+        });
+
+        // 保存配置元数据（不加密）
+        const metadata = {
+            userId: userId,
+            lastUpdated: userConfig.lastUpdated,
+            subscriptionCount: userConfig.subscriptions.length,
+            apiKeyCount: (userConfig.apiKeysManager.proxycheck?.keys?.length || 0) +
+                        (userConfig.apiKeysManager.ipinfo?.tokens?.length || 0),
+            configSize: configSize,
+            version: userConfig.version
+        };
+
+        await env.IP_CACHE.put(configKey + '_meta', JSON.stringify(metadata), {
+            expirationTtl: USER_CONFIG.BACKUP_RETENTION_DAYS * 24 * 60 * 60
+        });
+
+        console.log(`✅ 用户配置已保存: ${userId} (大小: ${configSize} 字节)`);
+        return {
+            success: true,
+            userId: userId,
+            configSize: configSize,
+            lastUpdated: userConfig.lastUpdated
+        };
+
+    } catch (error) {
+        console.error(`保存用户配置失败 ${userId}:`, error);
+        throw error;
+    }
+}
+
+// 从KV存储加载用户配置
+async function loadUserConfig(userId, password, env) {
+    if (!env.IP_CACHE) {
+        throw new Error('KV存储未配置');
+    }
+
+    if (!isValidUserId(userId)) {
+        throw new Error('无效的用户ID格式');
+    }
+
+    try {
+        const configKey = USER_CONFIG.KEY_PREFIX + userId;
+        const encryptedConfig = await env.IP_CACHE.get(configKey);
+
+        if (!encryptedConfig) {
+            throw new Error('用户配置不存在');
+        }
+
+        // 解密配置数据
+        const userConfig = await decryptData(encryptedConfig, password);
+
+        // 验证配置数据结构
+        if (!userConfig.userId || userConfig.userId !== userId) {
+            throw new Error('配置数据损坏或用户ID不匹配');
+        }
+
+        console.log(`✅ 用户配置已加载: ${userId}`);
+        return {
+            success: true,
+            config: userConfig
+        };
+
+    } catch (error) {
+        console.error(`加载用户配置失败 ${userId}:`, error);
+        throw error;
+    }
+}
+
+// 检查用户配置是否存在
+async function checkUserConfigExists(userId, env) {
+    if (!env.IP_CACHE) {
+        return false;
+    }
+
+    if (!isValidUserId(userId)) {
+        return false;
+    }
+
+    try {
+        const configKey = USER_CONFIG.KEY_PREFIX + userId;
+        const metadata = await env.IP_CACHE.get(configKey + '_meta');
+        return metadata !== null;
+    } catch (error) {
+        console.error(`检查用户配置失败 ${userId}:`, error);
+        return false;
+    }
+}
+
+// 获取用户配置元数据
+async function getUserConfigMetadata(userId, env) {
+    if (!env.IP_CACHE) {
+        throw new Error('KV存储未配置');
+    }
+
+    try {
+        const configKey = USER_CONFIG.KEY_PREFIX + userId;
+        const metadataStr = await env.IP_CACHE.get(configKey + '_meta');
+
+        if (!metadataStr) {
+            throw new Error('用户配置不存在');
+        }
+
+        return JSON.parse(metadataStr);
+    } catch (error) {
+        console.error(`获取用户配置元数据失败 ${userId}:`, error);
+        throw error;
+    }
+}
+
+// 删除用户配置
+async function deleteUserConfig(userId, password, env) {
+    if (!env.IP_CACHE) {
+        throw new Error('KV存储未配置');
+    }
+
+    try {
+        // 先验证密码
+        await loadUserConfig(userId, password, env);
+
+        // 删除配置和元数据
+        const configKey = USER_CONFIG.KEY_PREFIX + userId;
+        await Promise.all([
+            env.IP_CACHE.delete(configKey),
+            env.IP_CACHE.delete(configKey + '_meta')
+        ]);
+
+        console.log(`✅ 用户配置已删除: ${userId}`);
+        return { success: true };
+
+    } catch (error) {
+        console.error(`删除用户配置失败 ${userId}:`, error);
+        throw error;
+    }
+}
+
 // ==================== IP检测结果缓存管理 ====================
 
 // 缓存配置
@@ -3082,6 +4070,267 @@ async function handleCacheClear(request, env) {
             timestamp: new Date().toISOString()
         }), {
             status: 500,
+            headers: { 'Content-Type': 'application/json' }
+        });
+    }
+}
+
+// ==================== 用户配置管理API处理函数 ====================
+
+// 检查用户是否存在
+async function handleUserConfigCheck(request, env) {
+    if (request.method !== 'POST') {
+        return new Response('Method Not Allowed', { status: 405 });
+    }
+
+    try {
+        const { userId } = await request.json();
+
+        if (!isValidUserId(userId)) {
+            throw new Error('无效的用户ID格式');
+        }
+
+        const exists = await checkUserConfigExists(userId, env);
+
+        return new Response(JSON.stringify({
+            success: true,
+            exists: exists,
+            userId: userId
+        }), {
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+    } catch (error) {
+        console.error('检查用户配置失败:', error);
+
+        return new Response(JSON.stringify({
+            success: false,
+            error: error.message
+        }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json' }
+        });
+    }
+}
+
+// 注册新用户
+async function handleUserConfigRegister(request, env) {
+    if (request.method !== 'POST') {
+        return new Response('Method Not Allowed', { status: 405 });
+    }
+
+    try {
+        const { userId, password, config } = await request.json();
+
+        if (!isValidUserId(userId)) {
+            throw new Error('无效的用户ID格式');
+        }
+
+        if (!password || password.length < 6) {
+            throw new Error('密码至少需要6位字符');
+        }
+
+        // 检查用户是否已存在
+        const exists = await checkUserConfigExists(userId, env);
+        if (exists) {
+            throw new Error('用户ID已存在，请选择其他ID或直接登录');
+        }
+
+        // 保存用户配置
+        const result = await saveUserConfig(userId, password, config, env);
+
+        return new Response(JSON.stringify({
+            success: true,
+            userId: userId,
+            configSize: result.configSize,
+            lastUpdated: result.lastUpdated
+        }), {
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+    } catch (error) {
+        console.error('注册用户失败:', error);
+
+        return new Response(JSON.stringify({
+            success: false,
+            error: error.message
+        }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json' }
+        });
+    }
+}
+
+// 用户登录
+async function handleUserConfigLogin(request, env) {
+    if (request.method !== 'POST') {
+        return new Response('Method Not Allowed', { status: 405 });
+    }
+
+    try {
+        const { userId, password } = await request.json();
+
+        if (!isValidUserId(userId)) {
+            throw new Error('无效的用户ID格式');
+        }
+
+        if (!password) {
+            throw new Error('请输入密码');
+        }
+
+        // 尝试加载用户配置以验证密码
+        const result = await loadUserConfig(userId, password, env);
+
+        return new Response(JSON.stringify({
+            success: true,
+            userId: userId,
+            config: {
+                lastUpdated: result.config.lastUpdated,
+                subscriptionCount: result.config.subscriptions?.length || 0,
+                apiKeyCount: (result.config.apiKeysManager?.proxycheck?.keys?.length || 0) +
+                           (result.config.apiKeysManager?.ipinfo?.tokens?.length || 0)
+            }
+        }), {
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+    } catch (error) {
+        console.error('用户登录失败:', error);
+
+        return new Response(JSON.stringify({
+            success: false,
+            error: error.message
+        }), {
+            status: 401,
+            headers: { 'Content-Type': 'application/json' }
+        });
+    }
+}
+
+// 保存用户配置
+async function handleUserConfigSave(request, env) {
+    if (request.method !== 'POST') {
+        return new Response('Method Not Allowed', { status: 405 });
+    }
+
+    try {
+        const { userId, password, config } = await request.json();
+
+        if (!isValidUserId(userId)) {
+            throw new Error('无效的用户ID格式');
+        }
+
+        if (!password) {
+            throw new Error('请输入密码');
+        }
+
+        // 保存用户配置
+        const result = await saveUserConfig(userId, password, config, env);
+
+        return new Response(JSON.stringify({
+            success: true,
+            userId: userId,
+            configSize: result.configSize,
+            lastUpdated: result.lastUpdated
+        }), {
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+    } catch (error) {
+        console.error('保存用户配置失败:', error);
+
+        return new Response(JSON.stringify({
+            success: false,
+            error: error.message
+        }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json' }
+        });
+    }
+}
+
+// 加载用户配置
+async function handleUserConfigLoad(request, env) {
+    if (request.method !== 'POST') {
+        return new Response('Method Not Allowed', { status: 405 });
+    }
+
+    try {
+        const { userId, password } = await request.json();
+
+        if (!isValidUserId(userId)) {
+            throw new Error('无效的用户ID格式');
+        }
+
+        if (!password) {
+            throw new Error('请输入密码');
+        }
+
+        // 加载用户配置
+        const result = await loadUserConfig(userId, password, env);
+
+        return new Response(JSON.stringify({
+            success: true,
+            config: result.config
+        }), {
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+    } catch (error) {
+        console.error('加载用户配置失败:', error);
+
+        return new Response(JSON.stringify({
+            success: false,
+            error: error.message
+        }), {
+            status: 401,
+            headers: { 'Content-Type': 'application/json' }
+        });
+    }
+}
+
+// 导出用户配置
+async function handleUserConfigExport(request, env) {
+    if (request.method !== 'POST') {
+        return new Response('Method Not Allowed', { status: 405 });
+    }
+
+    try {
+        const { userId, password } = await request.json();
+
+        if (!isValidUserId(userId)) {
+            throw new Error('无效的用户ID格式');
+        }
+
+        if (!password) {
+            throw new Error('请输入密码');
+        }
+
+        // 加载用户配置
+        const result = await loadUserConfig(userId, password, env);
+
+        // 添加导出信息
+        const exportConfig = {
+            ...result.config,
+            exportTime: new Date().toISOString(),
+            exportedBy: userId
+        };
+
+        return new Response(JSON.stringify({
+            success: true,
+            config: exportConfig
+        }), {
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+    } catch (error) {
+        console.error('导出用户配置失败:', error);
+
+        return new Response(JSON.stringify({
+            success: false,
+            error: error.message
+        }), {
+            status: 401,
             headers: { 'Content-Type': 'application/json' }
         });
     }
