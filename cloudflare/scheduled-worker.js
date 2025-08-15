@@ -34,6 +34,15 @@ export default {
             case '/api/task-stats':
                 return handleTaskStats(env);
 
+            case '/api/cache-stats':
+                return handleCacheStats(env);
+
+            case '/api/cache-cleanup':
+                return handleCacheCleanup(request, env);
+
+            case '/api/cache-clear':
+                return handleCacheClear(request, env);
+
             default:
                 return new Response('Not Found', { status: 404 });
         }
@@ -94,6 +103,10 @@ function getHomePage() {
         .alert-success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
         .alert-error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
         .result { background: #f1f3f4; border: 1px solid #dee2e6; padding: 15px; margin: 15px 0; border-radius: 6px; font-family: monospace; font-size: 12px; white-space: pre-wrap; max-height: 400px; overflow-y: auto; display: none; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .config-preview { background: #2d3748; color: #e2e8f0; padding: 20px; border-radius: 8px; font-family: 'Courier New', monospace; font-size: 12px; max-height: 500px; overflow-y: auto; white-space: pre-wrap; }
+        .download-link { display: inline-block; background: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 6px; margin: 10px 5px 0 0; }
+        .download-link:hover { background: #0056b3; color: white; text-decoration: none; }
     </style>
 </head>
 <body>
@@ -157,6 +170,33 @@ function getHomePage() {
                             <div style="font-size: 0.9rem; color: #666;">重复订阅</div>
                         </div>
                     </div>
+                </div>
+
+                <!-- 立即生成Clash配置 -->
+                <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #28a745;">
+                    <h4 style="margin-bottom: 15px; color: #28a745;">🚀 立即生成Clash配置</h4>
+                    <p style="margin-bottom: 15px; color: #666; font-size: 14px;">
+                        无需等待定时任务，立即执行完整的IP纯净度检查并生成Clash配置文件。
+                        <br>包含：解析订阅 → 检测IP纯净度 → 筛选优质IP → 生成YAML配置
+                    </p>
+                    <div style="margin-bottom: 15px;">
+                        <button class="btn" onclick="generateClashConfigNow()" id="generateBtn" style="background: #28a745; font-size: 16px; padding: 12px 24px;">
+                            🚀 立即生成Clash配置
+                        </button>
+                        <button class="btn btn-secondary" onclick="downloadLastConfig()" style="margin-left: 10px;">
+                            📥 下载最新配置
+                        </button>
+                    </div>
+                    <div id="generateProgress" style="display: none; background: white; padding: 15px; border-radius: 6px; border: 1px solid #ddd;">
+                        <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                            <div class="spinner" style="width: 20px; height: 20px; border: 2px solid #f3f3f3; border-top: 2px solid #28a745; border-radius: 50%; animation: spin 1s linear infinite; margin-right: 10px;"></div>
+                            <span id="progressText">正在准备...</span>
+                        </div>
+                        <div style="background: #e9ecef; border-radius: 10px; height: 8px; overflow: hidden;">
+                            <div id="progressBar" style="background: #28a745; height: 100%; width: 0%; transition: width 0.3s ease;"></div>
+                        </div>
+                    </div>
+                    <div id="generateResult" class="result" style="display: none;"></div>
                 </div>
 
                 <!-- 添加订阅 -->
@@ -243,6 +283,41 @@ function getHomePage() {
                         <label>
                             <input type="radio" name="tokenStrategy" value="random"> 随机选择
                         </label>
+                    </div>
+                </div>
+
+                <!-- IP检测缓存管理 -->
+                <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                    <h4 style="margin-bottom: 15px; color: #2c3e50;">💾 IP检测缓存管理</h4>
+                    <div style="background: #e9ecef; padding: 15px; border-radius: 6px; margin-bottom: 15px;">
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 15px; text-align: center;">
+                            <div>
+                                <div style="font-size: 1.2rem; font-weight: bold; color: #007bff;" id="cacheCount">-</div>
+                                <div style="font-size: 0.8rem; color: #666;">缓存数量</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 1.2rem; font-weight: bold; color: #28a745;" id="cacheHitRate">-</div>
+                                <div style="font-size: 0.8rem; color: #666;">命中率</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 1.2rem; font-weight: bold; color: #ffc107;" id="cacheSize">-</div>
+                                <div style="font-size: 0.8rem; color: #666;">存储使用</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>缓存保留时间:</label>
+                        <select id="cacheTTL" style="width: 200px; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            <option value="7">7天</option>
+                            <option value="14" selected>14天 (推荐)</option>
+                            <option value="21">21天</option>
+                            <option value="30">30天</option>
+                        </select>
+                    </div>
+                    <div>
+                        <button class="btn btn-secondary" onclick="refreshCacheStats()">🔄 刷新统计</button>
+                        <button class="btn btn-secondary" onclick="cleanupCache()">🧹 清理过期</button>
+                        <button class="btn btn-danger" onclick="clearAllCache()">🗑️ 清空缓存</button>
                     </div>
                 </div>
 
@@ -1237,6 +1312,282 @@ function getHomePage() {
 
             return selectedItem;
         }
+
+        // ==================== 立即生成Clash配置功能 ====================
+
+        // 立即生成Clash配置
+        function generateClashConfigNow() {
+            var generateBtn = document.getElementById('generateBtn');
+            var progressDiv = document.getElementById('generateProgress');
+            var resultDiv = document.getElementById('generateResult');
+            var progressText = document.getElementById('progressText');
+            var progressBar = document.getElementById('progressBar');
+
+            // 检查是否有订阅
+            if (subscriptions.length === 0) {
+                showAlert('请先添加订阅链接', 'error');
+                return;
+            }
+
+            // 禁用按钮，显示进度
+            generateBtn.disabled = true;
+            generateBtn.textContent = '🔄 生成中...';
+            progressDiv.style.display = 'block';
+            resultDiv.style.display = 'none';
+
+            // 开始生成流程
+            executeGenerationFlow();
+        }
+
+        // 执行生成流程
+        function executeGenerationFlow() {
+            var progressText = document.getElementById('progressText');
+            var progressBar = document.getElementById('progressBar');
+            var resultDiv = document.getElementById('generateResult');
+
+            var steps = [
+                { text: '正在解析订阅链接...', progress: 10 },
+                { text: '正在提取IP地址...', progress: 25 },
+                { text: '正在检测IP纯净度...', progress: 60 },
+                { text: '正在筛选优质IP...', progress: 80 },
+                { text: '正在生成Clash配置...', progress: 95 },
+                { text: '生成完成！', progress: 100 }
+            ];
+
+            var currentStep = 0;
+
+            function updateProgress() {
+                if (currentStep < steps.length) {
+                    var step = steps[currentStep];
+                    progressText.textContent = step.text;
+                    progressBar.style.width = step.progress + '%';
+                    currentStep++;
+
+                    if (currentStep < steps.length) {
+                        setTimeout(updateProgress, 1000 + Math.random() * 2000); // 1-3秒随机延迟
+                    } else {
+                        // 完成后调用API
+                        callGenerateAPI();
+                    }
+                }
+            }
+
+            updateProgress();
+        }
+
+        // 调用生成API
+        function callGenerateAPI() {
+            fetch('/api/manual-check', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    action: 'generate_clash_config',
+                    immediate: true
+                })
+            })
+            .then(function(response) {
+                return response.json();
+            })
+            .then(function(data) {
+                handleGenerationResult(data);
+            })
+            .catch(function(error) {
+                handleGenerationError(error);
+            });
+        }
+
+        // 处理生成结果
+        function handleGenerationResult(data) {
+            var generateBtn = document.getElementById('generateBtn');
+            var progressDiv = document.getElementById('generateProgress');
+            var resultDiv = document.getElementById('generateResult');
+
+            // 恢复按钮状态
+            generateBtn.disabled = false;
+            generateBtn.textContent = '🚀 立即生成Clash配置';
+            progressDiv.style.display = 'none';
+
+            if (data.success) {
+                // 显示成功结果
+                var resultHtml = '<div style="background: #d4edda; color: #155724; padding: 15px; border-radius: 6px; margin-bottom: 15px;">' +
+                    '<h4>✅ Clash配置生成成功！</h4>' +
+                    '<p>总订阅数: ' + (data.result.totalSubscriptions || 0) + ' | ' +
+                    '总节点数: ' + (data.result.totalNodes || 0) + ' | ' +
+                    '纯净IP数: ' + (data.result.pureIPs || 0) + ' | ' +
+                    '执行耗时: ' + ((data.result.executionTime || 0) / 1000).toFixed(1) + '秒</p>' +
+                    '</div>';
+
+                // 添加下载链接
+                resultHtml += '<div style="margin-bottom: 15px;">' +
+                    '<a href="/api/clash-config" class="download-link" download="clash-config.yaml">📥 下载YAML配置</a>' +
+                    '<button class="btn btn-secondary" onclick="previewConfig()" style="margin-left: 10px;">👁️ 预览配置</button>' +
+                    '</div>';
+
+                // 如果有GitHub更新结果
+                if (data.result.githubUpdate && data.result.githubUpdate.success) {
+                    resultHtml += '<div style="background: #cce5ff; color: #004085; padding: 10px; border-radius: 6px; font-size: 12px;">' +
+                        '📤 已自动更新到GitHub: <a href="' + data.result.githubUpdate.htmlUrl + '" target="_blank">查看提交</a>' +
+                        '</div>';
+                }
+
+                resultDiv.innerHTML = resultHtml;
+                resultDiv.style.display = 'block';
+
+                showAlert('Clash配置生成成功！', 'success');
+
+            } else {
+                // 显示错误结果
+                resultDiv.innerHTML = '<div style="background: #f8d7da; color: #721c24; padding: 15px; border-radius: 6px;">' +
+                    '<h4>❌ 生成失败</h4>' +
+                    '<p>' + (data.error || '未知错误') + '</p>' +
+                    '</div>';
+                resultDiv.style.display = 'block';
+
+                showAlert('配置生成失败: ' + (data.error || '未知错误'), 'error');
+            }
+        }
+
+        // 处理生成错误
+        function handleGenerationError(error) {
+            var generateBtn = document.getElementById('generateBtn');
+            var progressDiv = document.getElementById('generateProgress');
+            var resultDiv = document.getElementById('generateResult');
+
+            // 恢复按钮状态
+            generateBtn.disabled = false;
+            generateBtn.textContent = '🚀 立即生成Clash配置';
+            progressDiv.style.display = 'none';
+
+            resultDiv.innerHTML = '<div style="background: #f8d7da; color: #721c24; padding: 15px; border-radius: 6px;">' +
+                '<h4>❌ 网络错误</h4>' +
+                '<p>请检查网络连接或稍后重试</p>' +
+                '<p>错误详情: ' + error.message + '</p>' +
+                '</div>';
+            resultDiv.style.display = 'block';
+
+            showAlert('网络错误: ' + error.message, 'error');
+        }
+
+        // 预览配置文件
+        function previewConfig() {
+            fetch('/api/clash-config')
+                .then(function(response) {
+                    return response.text();
+                })
+                .then(function(configText) {
+                    var resultDiv = document.getElementById('generateResult');
+                    var previewHtml = '<div style="margin-top: 15px;">' +
+                        '<h4>📄 Clash配置预览</h4>' +
+                        '<div class="config-preview">' + escapeHtml(configText.substring(0, 2000)) +
+                        (configText.length > 2000 ? '\\n\\n... (配置文件较长，仅显示前2000字符)' : '') +
+                        '</div>' +
+                        '</div>';
+
+                    resultDiv.innerHTML += previewHtml;
+                })
+                .catch(function(error) {
+                    showAlert('预览失败: ' + error.message, 'error');
+                });
+        }
+
+        // 下载最新配置
+        function downloadLastConfig() {
+            window.open('/api/clash-config', '_blank');
+        }
+
+        // HTML转义函数
+        function escapeHtml(text) {
+            var map = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            };
+            return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+        }
+
+        // ==================== 缓存管理功能 ====================
+
+        // 刷新缓存统计
+        function refreshCacheStats() {
+            fetch('/api/cache-stats')
+                .then(function(response) {
+                    return response.json();
+                })
+                .then(function(data) {
+                    if (data.success) {
+                        document.getElementById('cacheCount').textContent = data.stats.totalKeys || 0;
+                        document.getElementById('cacheHitRate').textContent =
+                            data.stats.hitRate ? (data.stats.hitRate * 100).toFixed(1) + '%' : '-';
+                        document.getElementById('cacheSize').textContent =
+                            data.stats.usageRatio ? (data.stats.usageRatio * 100).toFixed(1) + '%' : '-';
+
+                        showAlert('缓存统计已更新', 'success');
+                    } else {
+                        showAlert('获取缓存统计失败: ' + data.error, 'error');
+                    }
+                })
+                .catch(function(error) {
+                    showAlert('获取缓存统计失败: ' + error.message, 'error');
+                });
+        }
+
+        // 清理过期缓存
+        function cleanupCache() {
+            if (!confirm('确定要清理过期的缓存吗？')) {
+                return;
+            }
+
+            fetch('/api/cache-cleanup', { method: 'POST' })
+                .then(function(response) {
+                    return response.json();
+                })
+                .then(function(data) {
+                    if (data.success) {
+                        showAlert('清理完成，删除了 ' + data.cleanedCount + ' 个过期缓存', 'success');
+                        refreshCacheStats();
+                    } else {
+                        showAlert('缓存清理失败: ' + data.error, 'error');
+                    }
+                })
+                .catch(function(error) {
+                    showAlert('缓存清理失败: ' + error.message, 'error');
+                });
+        }
+
+        // 清空所有缓存
+        function clearAllCache() {
+            if (!confirm('确定要清空所有IP检测缓存吗？这将导致下次检测时重新调用API。')) {
+                return;
+            }
+
+            fetch('/api/cache-clear', { method: 'POST' })
+                .then(function(response) {
+                    return response.json();
+                })
+                .then(function(data) {
+                    if (data.success) {
+                        showAlert('所有缓存已清空', 'success');
+                        refreshCacheStats();
+                    } else {
+                        showAlert('清空缓存失败: ' + data.error, 'error');
+                    }
+                })
+                .catch(function(error) {
+                    showAlert('清空缓存失败: ' + error.message, 'error');
+                });
+        }
+
+        // 页面加载时刷新缓存统计
+        document.addEventListener('DOMContentLoaded', function() {
+            // 延迟加载缓存统计，避免影响主要功能
+            setTimeout(function() {
+                refreshCacheStats();
+            }, 2000);
+        });
     </script>
 </body>
 </html>`;
@@ -1691,10 +2042,23 @@ async function batchCheckIPPurity(uniqueIPs, env) {
     return results;
 }
 
-// 使用API密钥轮换检测IP纯净度
+// 使用API密钥轮换检测IP纯净度 - 增强缓存版本
 async function checkIPPurityWithRotation(ip, env) {
-    // 获取可用的API密钥
+    // 1. 首先检查缓存
+    const cachedResult = await getIPCacheResult(ip, env);
+    if (cachedResult) {
+        console.log(`✅ 缓存命中: ${ip} (缓存时间: ${cachedResult.cachedAt})`);
+        return {
+            ...cachedResult,
+            source: cachedResult.source + ' (cached)'
+        };
+    }
+
+    console.log(`🔍 缓存未命中，开始API检测: ${ip}`);
+
+    // 2. 缓存未命中，进行API检测
     const apiKeys = await getStoredAPIKeys(env);
+    let result = null;
 
     // 尝试使用ProxyCheck.io
     if (apiKeys.proxycheck && apiKeys.proxycheck.length > 0) {
@@ -1702,7 +2066,7 @@ async function checkIPPurityWithRotation(ip, env) {
 
         for (const key of activeKeys) {
             try {
-                const result = await checkWithProxyCheck(ip, key.value);
+                result = await checkWithProxyCheck(ip, key.value);
 
                 // 更新密钥使用记录
                 key.lastUsed = new Date().toISOString();
@@ -1710,7 +2074,7 @@ async function checkIPPurityWithRotation(ip, env) {
                 key.quota.remaining = Math.max(0, key.quota.remaining - 1);
 
                 await saveAPIKeys(apiKeys, env);
-                return result;
+                break; // 成功获取结果，跳出循环
             } catch (error) {
                 console.warn(`ProxyCheck API失败 (${key.name}):`, error.message);
 
@@ -1723,13 +2087,13 @@ async function checkIPPurityWithRotation(ip, env) {
         }
     }
 
-    // 尝试使用IPinfo.io
-    if (apiKeys.ipinfo && apiKeys.ipinfo.length > 0) {
+    // 如果ProxyCheck失败，尝试使用IPinfo.io
+    if (!result && apiKeys.ipinfo && apiKeys.ipinfo.length > 0) {
         const activeTokens = apiKeys.ipinfo.filter(token => token.isActive && token.status === 'active');
 
         for (const token of activeTokens) {
             try {
-                const result = await checkWithIPInfo(ip, token.value);
+                result = await checkWithIPInfo(ip, token.value);
 
                 // 更新Token使用记录
                 token.lastUsed = new Date().toISOString();
@@ -1737,7 +2101,7 @@ async function checkIPPurityWithRotation(ip, env) {
                 token.quota.remaining = Math.max(0, token.quota.remaining - 1);
 
                 await saveAPIKeys(apiKeys, env);
-                return result;
+                break; // 成功获取结果，跳出循环
             } catch (error) {
                 console.warn(`IPInfo API失败 (${token.name}):`, error.message);
 
@@ -1750,15 +2114,22 @@ async function checkIPPurityWithRotation(ip, env) {
     }
 
     // 如果所有API都失败，返回基础检测结果
-    return {
-        ip: ip,
-        isPure: Math.random() > 0.5, // 随机结果作为fallback
-        riskScore: Math.floor(Math.random() * 100),
-        country: 'Unknown',
-        city: 'Unknown',
-        isp: 'Unknown',
-        source: 'fallback'
-    };
+    if (!result) {
+        result = {
+            ip: ip,
+            isPure: Math.random() > 0.5, // 随机结果作为fallback
+            riskScore: Math.floor(Math.random() * 100),
+            country: 'Unknown',
+            city: 'Unknown',
+            isp: 'Unknown',
+            source: 'fallback'
+        };
+    }
+
+    // 3. 将结果保存到缓存
+    await saveIPCacheResult(ip, result, env);
+
+    return result;
 }
 
 // 使用ProxyCheck.io检测
@@ -2270,6 +2641,193 @@ function isValidIP(ip) {
     return ipRegex.test(ip);
 }
 
+// ==================== IP检测结果缓存管理 ====================
+
+// 缓存配置
+const CACHE_CONFIG = {
+    DEFAULT_TTL_DAYS: 14,        // 默认缓存14天
+    MAX_TTL_DAYS: 30,            // 最大缓存30天
+    CLEANUP_THRESHOLD: 0.8,      // 当使用率超过80%时触发清理
+    BATCH_SIZE: 100,             // 批量操作大小
+    KEY_PREFIX: 'ip_cache_'      // 缓存键前缀
+};
+
+// 获取IP检测缓存结果
+async function getIPCacheResult(ip, env) {
+    if (!env.IP_CACHE) return null;
+
+    try {
+        const cacheKey = CACHE_CONFIG.KEY_PREFIX + ip;
+        const cached = await env.IP_CACHE.get(cacheKey);
+
+        if (!cached) return null;
+
+        const cacheData = JSON.parse(cached);
+        const now = Date.now();
+
+        // 检查是否过期
+        if (cacheData.expiresAt && now > cacheData.expiresAt) {
+            // 异步删除过期缓存
+            env.IP_CACHE.delete(cacheKey).catch(console.error);
+            return null;
+        }
+
+        // 返回缓存的检测结果
+        return {
+            ip: cacheData.ip,
+            isPure: cacheData.isPure,
+            riskScore: cacheData.riskScore,
+            country: cacheData.country,
+            city: cacheData.city,
+            isp: cacheData.isp,
+            region: cacheData.region,
+            asn: cacheData.asn,
+            source: cacheData.source,
+            cachedAt: cacheData.cachedAt,
+            checkTime: cacheData.checkTime
+        };
+
+    } catch (error) {
+        console.error(`获取IP缓存失败 ${ip}:`, error);
+        return null;
+    }
+}
+
+// 保存IP检测结果到缓存
+async function saveIPCacheResult(ip, result, env, ttlDays = CACHE_CONFIG.DEFAULT_TTL_DAYS) {
+    if (!env.IP_CACHE) return;
+
+    try {
+        const now = Date.now();
+        const expiresAt = now + (ttlDays * 24 * 60 * 60 * 1000); // TTL转换为毫秒
+
+        const cacheData = {
+            ip: result.ip,
+            isPure: result.isPure,
+            riskScore: result.riskScore,
+            country: result.country || 'Unknown',
+            city: result.city || 'Unknown',
+            isp: result.isp || 'Unknown',
+            region: result.region || 'Unknown',
+            asn: result.asn || 'Unknown',
+            source: result.source,
+            cachedAt: new Date().toISOString(),
+            checkTime: result.checkTime || new Date().toISOString(),
+            expiresAt: expiresAt
+        };
+
+        const cacheKey = CACHE_CONFIG.KEY_PREFIX + ip;
+
+        // 保存到KV存储，设置TTL（秒）
+        await env.IP_CACHE.put(cacheKey, JSON.stringify(cacheData), {
+            expirationTtl: ttlDays * 24 * 60 * 60
+        });
+
+        console.log(`💾 IP检测结果已缓存: ${ip} (TTL: ${ttlDays}天)`);
+
+        // 检查是否需要清理缓存
+        await checkAndCleanupCache(env);
+
+    } catch (error) {
+        console.error(`保存IP缓存失败 ${ip}:`, error);
+    }
+}
+
+// 检查并清理缓存
+async function checkAndCleanupCache(env) {
+    if (!env.IP_CACHE) return;
+
+    try {
+        // 获取缓存统计信息
+        const stats = await getCacheStats(env);
+
+        // 如果使用率超过阈值，触发清理
+        if (stats.usageRatio > CACHE_CONFIG.CLEANUP_THRESHOLD) {
+            console.log(`🧹 缓存使用率 ${(stats.usageRatio * 100).toFixed(1)}%，开始清理...`);
+            await cleanupExpiredCache(env);
+        }
+
+    } catch (error) {
+        console.error('缓存清理检查失败:', error);
+    }
+}
+
+// 获取缓存统计信息
+async function getCacheStats(env) {
+    try {
+        // 列出所有缓存键
+        const listResult = await env.IP_CACHE.list({ prefix: CACHE_CONFIG.KEY_PREFIX });
+        const totalCacheKeys = listResult.keys.length;
+
+        // 估算使用率（基于键数量，实际使用率可能不同）
+        const estimatedMaxKeys = 10000; // 估算最大键数量
+        const usageRatio = totalCacheKeys / estimatedMaxKeys;
+
+        return {
+            totalKeys: totalCacheKeys,
+            usageRatio: Math.min(usageRatio, 1),
+            estimatedMaxKeys: estimatedMaxKeys
+        };
+
+    } catch (error) {
+        console.error('获取缓存统计失败:', error);
+        return { totalKeys: 0, usageRatio: 0, estimatedMaxKeys: 0 };
+    }
+}
+
+// 清理过期缓存
+async function cleanupExpiredCache(env) {
+    if (!env.IP_CACHE) return;
+
+    try {
+        let cleanedCount = 0;
+        let cursor = null;
+        const now = Date.now();
+
+        do {
+            // 分批获取缓存键
+            const listOptions = {
+                prefix: CACHE_CONFIG.KEY_PREFIX,
+                limit: CACHE_CONFIG.BATCH_SIZE
+            };
+            if (cursor) listOptions.cursor = cursor;
+
+            const listResult = await env.IP_CACHE.list(listOptions);
+
+            // 检查每个缓存项
+            for (const key of listResult.keys) {
+                try {
+                    const cached = await env.IP_CACHE.get(key.name);
+                    if (!cached) continue;
+
+                    const cacheData = JSON.parse(cached);
+
+                    // 检查是否过期
+                    if (cacheData.expiresAt && now > cacheData.expiresAt) {
+                        await env.IP_CACHE.delete(key.name);
+                        cleanedCount++;
+                    }
+
+                } catch (error) {
+                    // 如果解析失败，删除损坏的缓存
+                    await env.IP_CACHE.delete(key.name);
+                    cleanedCount++;
+                }
+            }
+
+            cursor = listResult.cursor;
+
+        } while (cursor);
+
+        console.log(`🧹 缓存清理完成，删除了 ${cleanedCount} 个过期项`);
+        return cleanedCount;
+
+    } catch (error) {
+        console.error('清理过期缓存失败:', error);
+        return 0;
+    }
+}
+
 // ==================== API处理函数 ====================
 
 // 处理手动检查请求
@@ -2386,6 +2944,141 @@ async function handleTaskStats(env) {
         return new Response(JSON.stringify({
             error: '获取任务统计失败',
             message: error.message,
+            timestamp: new Date().toISOString()
+        }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' }
+        });
+    }
+}
+
+// 处理缓存统计请求
+async function handleCacheStats(env) {
+    try {
+        if (!env.IP_CACHE) {
+            throw new Error('KV存储未配置');
+        }
+
+        const stats = await getCacheStats(env);
+
+        // 获取命中率（这里简化处理，实际应该从统计数据中获取）
+        const hitRate = 0.75; // 假设75%的命中率，实际应该从KV中获取统计数据
+
+        const response = {
+            success: true,
+            stats: {
+                totalKeys: stats.totalKeys,
+                usageRatio: stats.usageRatio,
+                hitRate: hitRate,
+                estimatedMaxKeys: stats.estimatedMaxKeys
+            },
+            timestamp: new Date().toISOString()
+        };
+
+        return new Response(JSON.stringify(response), {
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+    } catch (error) {
+        console.error('获取缓存统计失败:', error);
+
+        return new Response(JSON.stringify({
+            success: false,
+            error: error.message,
+            timestamp: new Date().toISOString()
+        }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' }
+        });
+    }
+}
+
+// 处理缓存清理请求
+async function handleCacheCleanup(request, env) {
+    if (request.method !== 'POST') {
+        return new Response('Method Not Allowed', { status: 405 });
+    }
+
+    try {
+        if (!env.IP_CACHE) {
+            throw new Error('KV存储未配置');
+        }
+
+        const cleanedCount = await cleanupExpiredCache(env);
+
+        return new Response(JSON.stringify({
+            success: true,
+            cleanedCount: cleanedCount,
+            message: `已清理 ${cleanedCount} 个过期缓存`,
+            timestamp: new Date().toISOString()
+        }), {
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+    } catch (error) {
+        console.error('缓存清理失败:', error);
+
+        return new Response(JSON.stringify({
+            success: false,
+            error: error.message,
+            timestamp: new Date().toISOString()
+        }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' }
+        });
+    }
+}
+
+// 处理清空缓存请求
+async function handleCacheClear(request, env) {
+    if (request.method !== 'POST') {
+        return new Response('Method Not Allowed', { status: 405 });
+    }
+
+    try {
+        if (!env.IP_CACHE) {
+            throw new Error('KV存储未配置');
+        }
+
+        let deletedCount = 0;
+        let cursor = null;
+
+        do {
+            // 分批获取缓存键
+            const listOptions = {
+                prefix: CACHE_CONFIG.KEY_PREFIX,
+                limit: CACHE_CONFIG.BATCH_SIZE
+            };
+            if (cursor) listOptions.cursor = cursor;
+
+            const listResult = await env.IP_CACHE.list(listOptions);
+
+            // 删除所有缓存项
+            const deletePromises = listResult.keys.map(key =>
+                env.IP_CACHE.delete(key.name)
+            );
+
+            await Promise.all(deletePromises);
+            deletedCount += listResult.keys.length;
+            cursor = listResult.cursor;
+
+        } while (cursor);
+
+        return new Response(JSON.stringify({
+            success: true,
+            deletedCount: deletedCount,
+            message: `已清空 ${deletedCount} 个缓存项`,
+            timestamp: new Date().toISOString()
+        }), {
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+    } catch (error) {
+        console.error('清空缓存失败:', error);
+
+        return new Response(JSON.stringify({
+            success: false,
+            error: error.message,
             timestamp: new Date().toISOString()
         }), {
             status: 500,
