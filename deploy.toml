@@ -1,3 +1,4 @@
+# Cloudflare Worker 一键部署配置
 name = "ip-purity-checker"
 main = "cloudflare/scheduled-worker.js"
 compatibility_date = "2024-01-01"
@@ -7,15 +8,19 @@ compatibility_date = "2024-01-01"
 ENVIRONMENT = "production"
 
 # KV存储绑定 - 部署时会自动创建
-# 首次部署后，请更新下面的ID
 [[kv_namespaces]]
 binding = "IP_CACHE"
-id = ""  # 首次部署时留空，系统会自动创建
+id = ""  # 部署时自动生成
 preview_id = ""
 
 # 定时任务配置 - 北京时间00:00 (UTC 16:00)
 [triggers]
 crons = ["0 16 * * *"]
+
+# 部署配置
+[build]
+command = ""
+cwd = ""
 
 # 兼容性设置
 [compatibility_flags]
