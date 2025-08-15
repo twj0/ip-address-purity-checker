@@ -278,7 +278,7 @@ jobs:
   auto-redeploy:
     needs: check-and-update
     runs-on: ubuntu-latest
-    if: needs.check-and-update.outputs.has_updates == 'true' && secrets.CLOUDFLARE_API_TOKEN != ''
+    if: ${{ needs.check-and-update.outputs.has_updates == 'true' && secrets.CLOUDFLARE_API_TOKEN != '' }}
 
     steps:
       - name: Checkout updated repository

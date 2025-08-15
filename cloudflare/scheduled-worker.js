@@ -61,6 +61,18 @@ export default {
             case '/api/user-config/export':
                 return handleUserConfigExport(request, env);
 
+            case '/api/webdav/test':
+                return handleWebDAVTest(request, env);
+
+            case '/api/webdav/backup':
+                return handleWebDAVBackup(request, env);
+
+            case '/api/webdav/restore':
+                return handleWebDAVRestore(request, env);
+
+            case '/api/webdav/list':
+                return handleWebDAVList(request, env);
+
             default:
                 return new Response('Not Found', { status: 404 });
         }
@@ -311,6 +323,60 @@ function getHomePage() {
                     </div>
 
                     <div id="cloudSyncResult" class="result" style="display: none;"></div>
+                </div>
+
+                <!-- WebDAV云备份 -->
+                <div style="background: #f3e5f5; padding: 20px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #9c27b0;">
+                    <h4 style="margin-bottom: 15px; color: #7b1fa2;">🌐 WebDAV云备份</h4>
+                    <p style="margin-bottom: 15px; color: #666; font-size: 14px;">
+                        使用您自己的WebDAV兼容云存储服务（如Nextcloud、ownCloud等）备份配置数据。
+                        <br>数据直接存储在您的私人云存储中，完全由您控制。
+                    </p>
+
+                    <!-- WebDAV状态 -->
+                    <div id="webdavStatus" style="background: #f5f5f5; padding: 15px; border-radius: 6px; margin-bottom: 15px;">
+                        <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                            <span id="webdavStatusIcon">🔒</span>
+                            <span id="webdavStatusText" style="margin-left: 10px; font-weight: bold;">未配置WebDAV</span>
+                        </div>
+                        <div id="webdavStatusDetails" style="font-size: 12px; color: #666;">
+                            请配置WebDAV服务器信息以启用云备份
+                        </div>
+                    </div>
+
+                    <!-- WebDAV配置 -->
+                    <div id="webdavConfig">
+                        <div class="form-group">
+                            <label for="webdavUrl">WebDAV服务器URL:</label>
+                            <input type="url" id="webdavUrl" placeholder="https://your-cloud.com/remote.php/dav/files/username/" style="width: 100%;">
+                            <small style="color: #666;">例如: https://nextcloud.example.com/remote.php/dav/files/username/</small>
+                        </div>
+                        <div class="form-group">
+                            <label for="webdavUsername">用户名:</label>
+                            <input type="text" id="webdavUsername" placeholder="您的WebDAV用户名" style="width: 100%;">
+                        </div>
+                        <div class="form-group">
+                            <label for="webdavPassword">密码/应用密码:</label>
+                            <input type="password" id="webdavPassword" placeholder="WebDAV密码或应用专用密码" style="width: 100%;">
+                            <small style="color: #666;">建议使用应用专用密码而非主密码</small>
+                        </div>
+                        <div class="form-group">
+                            <label for="webdavPath">备份路径:</label>
+                            <input type="text" id="webdavPath" placeholder="ip-purity-checker/" value="ip-purity-checker/" style="width: 100%;">
+                            <small style="color: #666;">配置文件将保存在此目录下</small>
+                        </div>
+                    </div>
+
+                    <!-- WebDAV操作 -->
+                    <div style="margin-bottom: 15px;">
+                        <button class="btn btn-secondary" onclick="testWebDAVConnection()">🔍 测试连接</button>
+                        <button class="btn btn-secondary" onclick="saveWebDAVConfig()">💾 保存配置</button>
+                        <button class="btn" onclick="backupToWebDAV()">☁️ 备份到WebDAV</button>
+                        <button class="btn btn-secondary" onclick="restoreFromWebDAV()">📥 从WebDAV恢复</button>
+                        <button class="btn btn-secondary" onclick="listWebDAVBackups()">📋 查看备份</button>
+                    </div>
+
+                    <div id="webdavResult" class="result" style="display: none;"></div>
                 </div>
 
                 <!-- 本地数据迁移 -->
@@ -1748,6 +1814,7 @@ function getHomePage() {
             setTimeout(function() {
                 refreshCacheStats();
                 initCloudSync();
+                initWebDAVConfig();
             }, 2000);
         });
 
@@ -2267,6 +2334,281 @@ function getHomePage() {
             })
             .catch(function(error) {
                 showAlert('导出失败: ' + error.message, 'error');
+            });
+        }
+
+        // ==================== WebDAV云备份功能 ====================
+
+        // WebDAV配置状态
+        var webdavConfig = {
+            url: '',
+            username: '',
+            password: '',
+            path: 'ip-purity-checker/',
+            isConfigured: false
+        };
+
+        // 初始化WebDAV配置
+        function initWebDAVConfig() {
+            var savedConfig = localStorage.getItem('webdavConfig');
+            if (savedConfig) {
+                try {
+                    webdavConfig = JSON.parse(savedConfig);
+                    updateWebDAVUI();
+                    loadWebDAVConfigToForm();
+                } catch (e) {
+                    console.error('加载WebDAV配置失败:', e);
+                }
+            }
+        }
+
+        // 更新WebDAV UI状态
+        function updateWebDAVUI() {
+            var statusIcon = document.getElementById('webdavStatusIcon');
+            var statusText = document.getElementById('webdavStatusText');
+            var statusDetails = document.getElementById('webdavStatusDetails');
+
+            if (webdavConfig.isConfigured && webdavConfig.url) {
+                statusIcon.textContent = '🌐';
+                statusText.textContent = 'WebDAV已配置';
+                statusDetails.textContent = '服务器: ' + webdavConfig.url + ' | 用户: ' + webdavConfig.username;
+            } else {
+                statusIcon.textContent = '🔒';
+                statusText.textContent = '未配置WebDAV';
+                statusDetails.textContent = '请配置WebDAV服务器信息以启用云备份';
+            }
+        }
+
+        // 加载WebDAV配置到表单
+        function loadWebDAVConfigToForm() {
+            document.getElementById('webdavUrl').value = webdavConfig.url || '';
+            document.getElementById('webdavUsername').value = webdavConfig.username || '';
+            document.getElementById('webdavPassword').value = webdavConfig.password || '';
+            document.getElementById('webdavPath').value = webdavConfig.path || 'ip-purity-checker/';
+        }
+
+        // 从表单获取WebDAV配置
+        function getWebDAVConfigFromForm() {
+            return {
+                url: document.getElementById('webdavUrl').value.trim(),
+                username: document.getElementById('webdavUsername').value.trim(),
+                password: document.getElementById('webdavPassword').value,
+                path: document.getElementById('webdavPath').value.trim() || 'ip-purity-checker/'
+            };
+        }
+
+        // 测试WebDAV连接
+        function testWebDAVConnection() {
+            var config = getWebDAVConfigFromForm();
+
+            if (!config.url || !config.username || !config.password) {
+                showAlert('请填写完整的WebDAV配置信息', 'error');
+                return;
+            }
+
+            var resultDiv = document.getElementById('webdavResult');
+            resultDiv.innerHTML = '<div style="color: #666;">正在测试WebDAV连接...</div>';
+            resultDiv.style.display = 'block';
+
+            fetch('/api/webdav/test', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(config)
+            })
+            .then(function(response) {
+                return response.json();
+            })
+            .then(function(data) {
+                if (data.success) {
+                    resultDiv.innerHTML = '<div style="color: #28a745;">✅ WebDAV连接测试成功！<br>' +
+                        '服务器响应正常，可以进行备份操作。</div>';
+                    showAlert('WebDAV连接测试成功', 'success');
+                } else {
+                    resultDiv.innerHTML = '<div style="color: #dc3545;">❌ WebDAV连接测试失败:<br>' +
+                        data.error + '</div>';
+                    showAlert('WebDAV连接测试失败: ' + data.error, 'error');
+                }
+            })
+            .catch(function(error) {
+                resultDiv.innerHTML = '<div style="color: #dc3545;">❌ 连接测试失败: ' + error.message + '</div>';
+                showAlert('连接测试失败: ' + error.message, 'error');
+            });
+        }
+
+        // 保存WebDAV配置
+        function saveWebDAVConfig() {
+            var config = getWebDAVConfigFromForm();
+
+            if (!config.url || !config.username || !config.password) {
+                showAlert('请填写完整的WebDAV配置信息', 'error');
+                return;
+            }
+
+            config.isConfigured = true;
+            webdavConfig = config;
+
+            // 保存到localStorage
+            localStorage.setItem('webdavConfig', JSON.stringify(webdavConfig));
+
+            updateWebDAVUI();
+            showAlert('WebDAV配置已保存', 'success');
+
+            var resultDiv = document.getElementById('webdavResult');
+            resultDiv.innerHTML = '<div style="color: #28a745;">✅ WebDAV配置已保存</div>';
+            resultDiv.style.display = 'block';
+        }
+
+        // 备份到WebDAV
+        function backupToWebDAV() {
+            if (!webdavConfig.isConfigured) {
+                showAlert('请先配置并保存WebDAV设置', 'error');
+                return;
+            }
+
+            var currentConfig = {
+                subscriptions: subscriptions,
+                apiKeysManager: apiKeysManager,
+                settings: {},
+                backupTime: new Date().toISOString(),
+                version: '2.0'
+            };
+
+            var resultDiv = document.getElementById('webdavResult');
+            resultDiv.innerHTML = '<div style="color: #666;">正在备份到WebDAV...</div>';
+            resultDiv.style.display = 'block';
+
+            fetch('/api/webdav/backup', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    webdavConfig: webdavConfig,
+                    configData: currentConfig
+                })
+            })
+            .then(function(response) {
+                return response.json();
+            })
+            .then(function(data) {
+                if (data.success) {
+                    resultDiv.innerHTML = '<div style="color: #28a745;">✅ 配置已成功备份到WebDAV！<br>' +
+                        '备份文件: ' + data.filename + '<br>' +
+                        '文件大小: ' + (data.size || 0) + ' 字节</div>';
+                    showAlert('配置已备份到WebDAV', 'success');
+                } else {
+                    resultDiv.innerHTML = '<div style="color: #dc3545;">❌ WebDAV备份失败:<br>' +
+                        data.error + '</div>';
+                    showAlert('WebDAV备份失败: ' + data.error, 'error');
+                }
+            })
+            .catch(function(error) {
+                resultDiv.innerHTML = '<div style="color: #dc3545;">❌ 备份失败: ' + error.message + '</div>';
+                showAlert('备份失败: ' + error.message, 'error');
+            });
+        }
+
+        // 从WebDAV恢复
+        function restoreFromWebDAV() {
+            if (!webdavConfig.isConfigured) {
+                showAlert('请先配置并保存WebDAV设置', 'error');
+                return;
+            }
+
+            if (!confirm('从WebDAV恢复配置将覆盖当前的本地配置，确定继续吗？')) {
+                return;
+            }
+
+            var resultDiv = document.getElementById('webdavResult');
+            resultDiv.innerHTML = '<div style="color: #666;">正在从WebDAV恢复配置...</div>';
+            resultDiv.style.display = 'block';
+
+            fetch('/api/webdav/restore', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    webdavConfig: webdavConfig
+                })
+            })
+            .then(function(response) {
+                return response.json();
+            })
+            .then(function(data) {
+                if (data.success && data.configData) {
+                    // 更新本地配置
+                    if (data.configData.subscriptions) {
+                        subscriptions = data.configData.subscriptions;
+                    }
+                    if (data.configData.apiKeysManager) {
+                        apiKeysManager = data.configData.apiKeysManager;
+                    }
+
+                    // 保存到localStorage作为备份
+                    saveAllSettings();
+
+                    // 刷新界面
+                    loadSubscriptions();
+                    loadAPIKeys();
+
+                    resultDiv.innerHTML = '<div style="color: #28a745;">✅ 配置已从WebDAV恢复！<br>' +
+                        '备份时间: ' + (data.configData.backupTime ? new Date(data.configData.backupTime).toLocaleString() : '未知') + '<br>' +
+                        '订阅数量: ' + subscriptions.length + ' | API密钥数量: ' +
+                        ((apiKeysManager.proxycheck?.keys?.length || 0) + (apiKeysManager.ipinfo?.tokens?.length || 0)) + '</div>';
+                    showAlert('配置已从WebDAV恢复', 'success');
+                } else {
+                    resultDiv.innerHTML = '<div style="color: #dc3545;">❌ WebDAV恢复失败:<br>' +
+                        (data.error || '未找到有效的备份文件') + '</div>';
+                    showAlert('WebDAV恢复失败: ' + (data.error || '未找到有效的备份文件'), 'error');
+                }
+            })
+            .catch(function(error) {
+                resultDiv.innerHTML = '<div style="color: #dc3545;">❌ 恢复失败: ' + error.message + '</div>';
+                showAlert('恢复失败: ' + error.message, 'error');
+            });
+        }
+
+        // 查看WebDAV备份列表
+        function listWebDAVBackups() {
+            if (!webdavConfig.isConfigured) {
+                showAlert('请先配置并保存WebDAV设置', 'error');
+                return;
+            }
+
+            var resultDiv = document.getElementById('webdavResult');
+            resultDiv.innerHTML = '<div style="color: #666;">正在获取备份列表...</div>';
+            resultDiv.style.display = 'block';
+
+            fetch('/api/webdav/list', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    webdavConfig: webdavConfig
+                })
+            })
+            .then(function(response) {
+                return response.json();
+            })
+            .then(function(data) {
+                if (data.success && data.files) {
+                    var fileList = data.files.map(function(file) {
+                        return '<tr>' +
+                            '<td>' + file.name + '</td>' +
+                            '<td>' + (file.size ? (file.size / 1024).toFixed(1) + ' KB' : '-') + '</td>' +
+                            '<td>' + (file.lastModified ? new Date(file.lastModified).toLocaleString() : '-') + '</td>' +
+                            '</tr>';
+                    }).join('');
+
+                    resultDiv.innerHTML = '<div style="color: #28a745;">✅ 找到 ' + data.files.length + ' 个备份文件:</div>' +
+                        '<table style="width: 100%; margin-top: 10px; border-collapse: collapse;">' +
+                        '<thead><tr style="background: #f5f5f5;"><th style="padding: 8px; border: 1px solid #ddd;">文件名</th>' +
+                        '<th style="padding: 8px; border: 1px solid #ddd;">大小</th>' +
+                        '<th style="padding: 8px; border: 1px solid #ddd;">修改时间</th></tr></thead>' +
+                        '<tbody>' + fileList + '</tbody></table>';
+                } else {
+                    resultDiv.innerHTML = '<div style="color: #ffc107;">⚠️ 未找到备份文件或目录为空</div>';
+                }
+            })
+            .catch(function(error) {
+                resultDiv.innerHTML = '<div style="color: #dc3545;">❌ 获取备份列表失败: ' + error.message + '</div>';
+                showAlert('获取备份列表失败: ' + error.message, 'error');
             });
         }
     </script>
@@ -4334,4 +4676,452 @@ async function handleUserConfigExport(request, env) {
             headers: { 'Content-Type': 'application/json' }
         });
     }
+}
+
+// ==================== WebDAV云备份API处理函数 ====================
+
+// WebDAV连接测试
+async function handleWebDAVTest(request, env) {
+    if (request.method !== 'POST') {
+        return new Response('Method Not Allowed', { status: 405 });
+    }
+
+    try {
+        const { url, username, password } = await request.json();
+
+        if (!url || !username || !password) {
+            throw new Error('WebDAV配置信息不完整');
+        }
+
+        // 测试WebDAV连接
+        const testResult = await testWebDAVConnection(url, username, password);
+
+        return new Response(JSON.stringify({
+            success: true,
+            message: 'WebDAV连接测试成功',
+            serverInfo: testResult
+        }), {
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+    } catch (error) {
+        console.error('WebDAV连接测试失败:', error);
+
+        return new Response(JSON.stringify({
+            success: false,
+            error: error.message
+        }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json' }
+        });
+    }
+}
+
+// WebDAV备份
+async function handleWebDAVBackup(request, env) {
+    if (request.method !== 'POST') {
+        return new Response('Method Not Allowed', { status: 405 });
+    }
+
+    try {
+        const { webdavConfig, configData } = await request.json();
+
+        if (!webdavConfig || !configData) {
+            throw new Error('备份数据不完整');
+        }
+
+        // 生成备份文件名
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const filename = `ip-purity-config-${timestamp}.json`;
+
+        // 备份到WebDAV
+        const backupResult = await backupToWebDAV(
+            webdavConfig.url,
+            webdavConfig.username,
+            webdavConfig.password,
+            webdavConfig.path,
+            filename,
+            configData
+        );
+
+        return new Response(JSON.stringify({
+            success: true,
+            filename: filename,
+            size: backupResult.size,
+            message: '配置已成功备份到WebDAV'
+        }), {
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+    } catch (error) {
+        console.error('WebDAV备份失败:', error);
+
+        return new Response(JSON.stringify({
+            success: false,
+            error: error.message
+        }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' }
+        });
+    }
+}
+
+// WebDAV恢复
+async function handleWebDAVRestore(request, env) {
+    if (request.method !== 'POST') {
+        return new Response('Method Not Allowed', { status: 405 });
+    }
+
+    try {
+        const { webdavConfig } = await request.json();
+
+        if (!webdavConfig) {
+            throw new Error('WebDAV配置信息不完整');
+        }
+
+        // 从WebDAV恢复最新配置
+        const configData = await restoreFromWebDAV(
+            webdavConfig.url,
+            webdavConfig.username,
+            webdavConfig.password,
+            webdavConfig.path
+        );
+
+        return new Response(JSON.stringify({
+            success: true,
+            configData: configData,
+            message: '配置已从WebDAV恢复'
+        }), {
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+    } catch (error) {
+        console.error('WebDAV恢复失败:', error);
+
+        return new Response(JSON.stringify({
+            success: false,
+            error: error.message
+        }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' }
+        });
+    }
+}
+
+// WebDAV文件列表
+async function handleWebDAVList(request, env) {
+    if (request.method !== 'POST') {
+        return new Response('Method Not Allowed', { status: 405 });
+    }
+
+    try {
+        const { webdavConfig } = await request.json();
+
+        if (!webdavConfig) {
+            throw new Error('WebDAV配置信息不完整');
+        }
+
+        // 获取WebDAV文件列表
+        const files = await listWebDAVFiles(
+            webdavConfig.url,
+            webdavConfig.username,
+            webdavConfig.password,
+            webdavConfig.path
+        );
+
+        return new Response(JSON.stringify({
+            success: true,
+            files: files,
+            message: '获取文件列表成功'
+        }), {
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+    } catch (error) {
+        console.error('获取WebDAV文件列表失败:', error);
+
+        return new Response(JSON.stringify({
+            success: false,
+            error: error.message
+        }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' }
+        });
+    }
+}
+
+// ==================== WebDAV核心功能实现 ====================
+
+// 测试WebDAV连接
+async function testWebDAVConnection(url, username, password) {
+    try {
+        // 确保URL以/结尾
+        const baseUrl = url.endsWith('/') ? url : url + '/';
+
+        // 创建认证头
+        const auth = btoa(username + ':' + password);
+
+        // 发送PROPFIND请求测试连接
+        const response = await fetch(baseUrl, {
+            method: 'PROPFIND',
+            headers: {
+                'Authorization': 'Basic ' + auth,
+                'Depth': '0',
+                'Content-Type': 'application/xml'
+            },
+            body: '<?xml version="1.0"?><propfind xmlns="DAV:"><prop><displayname/></prop></propfind>'
+        });
+
+        if (!response.ok) {
+            if (response.status === 401) {
+                throw new Error('认证失败：用户名或密码错误');
+            } else if (response.status === 404) {
+                throw new Error('WebDAV路径不存在');
+            } else {
+                throw new Error(`WebDAV服务器错误: ${response.status} ${response.statusText}`);
+            }
+        }
+
+        return {
+            status: 'connected',
+            server: response.headers.get('server') || 'Unknown',
+            statusCode: response.status
+        };
+
+    } catch (error) {
+        console.error('WebDAV连接测试失败:', error);
+        throw new Error('连接失败: ' + error.message);
+    }
+}
+
+// 备份配置到WebDAV
+async function backupToWebDAV(url, username, password, path, filename, configData) {
+    try {
+        // 构建完整路径
+        const baseUrl = url.endsWith('/') ? url : url + '/';
+        const fullPath = path ? (path.endsWith('/') ? path : path + '/') : '';
+        const fileUrl = baseUrl + fullPath + filename;
+
+        // 创建认证头
+        const auth = btoa(username + ':' + password);
+
+        // 确保目录存在
+        if (fullPath) {
+            await createWebDAVDirectory(baseUrl, fullPath, auth);
+        }
+
+        // 准备备份数据
+        const backupData = JSON.stringify(configData, null, 2);
+
+        // 上传文件
+        const response = await fetch(fileUrl, {
+            method: 'PUT',
+            headers: {
+                'Authorization': 'Basic ' + auth,
+                'Content-Type': 'application/json'
+            },
+            body: backupData
+        });
+
+        if (!response.ok) {
+            throw new Error(`上传失败: ${response.status} ${response.statusText}`);
+        }
+
+        return {
+            success: true,
+            size: backupData.length,
+            url: fileUrl
+        };
+
+    } catch (error) {
+        console.error('WebDAV备份失败:', error);
+        throw new Error('备份失败: ' + error.message);
+    }
+}
+
+// 从WebDAV恢复配置
+async function restoreFromWebDAV(url, username, password, path) {
+    try {
+        // 构建完整路径
+        const baseUrl = url.endsWith('/') ? url : url + '/';
+        const fullPath = path ? (path.endsWith('/') ? path : path + '/') : '';
+        const dirUrl = baseUrl + fullPath;
+
+        // 创建认证头
+        const auth = btoa(username + ':' + password);
+
+        // 获取目录中的文件列表
+        const files = await listWebDAVFiles(url, username, password, path);
+
+        // 找到最新的配置文件
+        const configFiles = files.filter(file =>
+            file.name.startsWith('ip-purity-config-') && file.name.endsWith('.json')
+        );
+
+        if (configFiles.length === 0) {
+            throw new Error('未找到配置备份文件');
+        }
+
+        // 按修改时间排序，获取最新的
+        configFiles.sort((a, b) => new Date(b.lastModified) - new Date(a.lastModified));
+        const latestFile = configFiles[0];
+
+        // 下载最新配置文件
+        const fileUrl = dirUrl + latestFile.name;
+        const response = await fetch(fileUrl, {
+            method: 'GET',
+            headers: {
+                'Authorization': 'Basic ' + auth
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error(`下载失败: ${response.status} ${response.statusText}`);
+        }
+
+        const configText = await response.text();
+        const configData = JSON.parse(configText);
+
+        return configData;
+
+    } catch (error) {
+        console.error('WebDAV恢复失败:', error);
+        throw new Error('恢复失败: ' + error.message);
+    }
+}
+
+// 获取WebDAV文件列表
+async function listWebDAVFiles(url, username, password, path) {
+    try {
+        // 构建完整路径
+        const baseUrl = url.endsWith('/') ? url : url + '/';
+        const fullPath = path ? (path.endsWith('/') ? path : path + '/') : '';
+        const dirUrl = baseUrl + fullPath;
+
+        // 创建认证头
+        const auth = btoa(username + ':' + password);
+
+        // 发送PROPFIND请求获取文件列表
+        const response = await fetch(dirUrl, {
+            method: 'PROPFIND',
+            headers: {
+                'Authorization': 'Basic ' + auth,
+                'Depth': '1',
+                'Content-Type': 'application/xml'
+            },
+            body: `<?xml version="1.0"?>
+                <propfind xmlns="DAV:">
+                    <prop>
+                        <displayname/>
+                        <getcontentlength/>
+                        <getlastmodified/>
+                        <resourcetype/>
+                    </prop>
+                </propfind>`
+        });
+
+        if (!response.ok) {
+            throw new Error(`获取文件列表失败: ${response.status} ${response.statusText}`);
+        }
+
+        const xmlText = await response.text();
+
+        // 解析XML响应
+        const files = parseWebDAVResponse(xmlText);
+
+        // 过滤出配置文件
+        return files.filter(file =>
+            file.name &&
+            file.name.endsWith('.json') &&
+            !file.isDirectory
+        );
+
+    } catch (error) {
+        console.error('获取WebDAV文件列表失败:', error);
+        throw new Error('获取文件列表失败: ' + error.message);
+    }
+}
+
+// 创建WebDAV目录
+async function createWebDAVDirectory(baseUrl, path, auth) {
+    try {
+        const dirUrl = baseUrl + path;
+
+        const response = await fetch(dirUrl, {
+            method: 'MKCOL',
+            headers: {
+                'Authorization': 'Basic ' + auth
+            }
+        });
+
+        // 201 Created 或 405 Method Not Allowed (目录已存在) 都是正常的
+        if (response.ok || response.status === 405) {
+            return true;
+        }
+
+        throw new Error(`创建目录失败: ${response.status} ${response.statusText}`);
+
+    } catch (error) {
+        // 如果目录已存在，忽略错误
+        if (error.message.includes('405')) {
+            return true;
+        }
+        throw error;
+    }
+}
+
+// 解析WebDAV PROPFIND响应
+function parseWebDAVResponse(xmlText) {
+    const files = [];
+
+    try {
+        // 简单的XML解析，提取文件信息
+        const responseRegex = /<d:response[^>]*>(.*?)<\/d:response>/gs;
+        const matches = xmlText.match(responseRegex);
+
+        if (!matches) {
+            return files;
+        }
+
+        matches.forEach(match => {
+            try {
+                // 提取文件名
+                const hrefMatch = match.match(/<d:href[^>]*>(.*?)<\/d:href>/);
+                if (!hrefMatch) return;
+
+                const href = hrefMatch[1];
+                const name = decodeURIComponent(href.split('/').pop());
+
+                // 跳过当前目录
+                if (!name || name === '') return;
+
+                // 检查是否为目录
+                const isDirectory = match.includes('<d:collection/>');
+
+                // 提取文件大小
+                const sizeMatch = match.match(/<d:getcontentlength[^>]*>(.*?)<\/d:getcontentlength>/);
+                const size = sizeMatch ? parseInt(sizeMatch[1]) : 0;
+
+                // 提取修改时间
+                const modifiedMatch = match.match(/<d:getlastmodified[^>]*>(.*?)<\/d:getlastmodified>/);
+                const lastModified = modifiedMatch ? modifiedMatch[1] : null;
+
+                files.push({
+                    name: name,
+                    size: size,
+                    lastModified: lastModified,
+                    isDirectory: isDirectory,
+                    href: href
+                });
+
+            } catch (e) {
+                console.error('解析WebDAV响应项失败:', e);
+            }
+        });
+
+    } catch (error) {
+        console.error('解析WebDAV响应失败:', error);
+    }
+
+    return files;
 }
