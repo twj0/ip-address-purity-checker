@@ -1,0 +1,30 @@
+{
+  "timestamp": "2025-08-15T00:06:58.764Z",
+  "workerUrl": "https://ip-purity-checker.twj1234560.workers.dev",
+  "results": [
+    {
+      "name": "主页面加载测试",
+      "success": false,
+      "critical": true,
+      "error": "请求超时"
+    },
+    {
+      "name": "最小化测试页面",
+      "success": false,
+      "critical": false,
+      "error": "请求超时"
+    },
+    {
+      "name": "完整测试页面",
+      "success": false,
+      "critical": false,
+      "error": "请求超时"
+    }
+  ],
+  "summary": {
+    "total": 3,
+    "success": 0,
+    "failures": 3,
+    "criticalFailures": 1
+  }
+}
