@@ -196,6 +196,7 @@ python scripts/dedup_purity_to_yaml.py
 ### Output Files
 
 - `subscription_ip_report.csv`: Detailed IP check report
+- `sorted_clash.yaml`: Optimized Clash configuration file based on purity and risk score
 - `dedup_purity_clash.yml`: Optimized Clash configuration file
 
 ### Advanced Usage
@@ -294,6 +295,55 @@ vercel --prod
 Or click for one-click deployment:
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/twj0/ip-address-purity-checker)
+
+### Manual Cloudflare Worker Deployment
+
+If you prefer to deploy the worker manually, follow these steps:
+
+**Step 1: Prepare the environment**
+```bash
+# Install Node.js (if not already installed)
+# Download from: https://nodejs.org/
+
+# Install the Wrangler CLI
+npm install -g wrangler
+
+# Verify the installation
+wrangler --version
+```
+
+**Step 2: Log in to Cloudflare**
+```bash
+# Log in to your Cloudflare account
+wrangler login
+
+# Verify your login status
+wrangler whoami
+```
+
+**Step 3: Clone and Deploy**
+```bash
+# Clone the project
+git clone https://github.com/twj0/ip-address-purity-checker.git
+cd ip-address-purity-checker
+
+# Deploy the worker
+wrangler deploy
+```
+
+**Step 4: Configure KV Storage (Optional)**
+```bash
+# Create a KV namespace (for data persistence)
+wrangler kv namespace create "IP_CACHE"
+
+# Copy the returned ID, then update the wrangler.toml file
+# by uncommenting the [[kv_namespaces]] section and pasting the ID.
+# Then, redeploy the worker.
+wrangler deploy
+```
+> **Note**: KV storage is optional. The worker will function without it, but it will not be able to save check history or subscription data.
+
+
 
 ## 📁 Project Structure
 

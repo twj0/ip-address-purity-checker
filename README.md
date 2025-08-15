@@ -60,7 +60,7 @@ wrangler tail
 ### 步骤4: 配置KV存储（可选）
 ```bash
 # 创建KV命名空间（可选，用于数据持久化）
-wrangler kv:namespace create "IP_CACHE"
+wrangler kv namespace create "IP_CACHE"
 
 # 复制返回的ID，更新wrangler.toml中的KV配置
 # 取消注释并填入ID，然后重新部署
@@ -113,6 +113,34 @@ wrangler deploy
 - 系统每天北京时间00:00自动执行检测
 - 在"定时任务"标签页查看执行状态
 - 支持手动触发检测
+
+## 脚本使用
+
+本项目的核心功能由Python脚本驱动，您可以直接在本地运行。
+
+### 主要脚本
+
+- **`scripts/run_purity_check.py`**:
+  - **功能**: 从 `汇聚订阅.txt` 文件中读取订阅链接，检测所有IP地址的纯净度，并生成详细的CSV报告。
+  - **输出文件**: `subscription_ip_report.csv` (项目根目录)
+
+- **`scripts/generate_sorted_config.py`**:
+  - **功能**: 在 `run_purity_check.py` 的基础上，进一步根据IP纯净度和风险评分对节点进行排序，并生成一个优化后的Clash配置文件。
+  - **输出文件**: `sorted_clash.yaml` (项目根目录)
+
+### 使用方法
+
+1.  **配置订阅链接**:
+    - 将您的订阅链接填入项目根目录下的 `汇聚订阅.txt` 文件，每行一个。
+
+2.  **运行脚本**:
+    ```bash
+    # 运行基础的纯净度检测
+    python scripts/run_purity_check.py
+
+    # 运行检测并生成排序后的Clash配置文件
+    python scripts/generate_sorted_config.py
+    ```
 
 ## 🔧 API接口
 
