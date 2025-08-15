@@ -19,7 +19,7 @@
 - 📱 **响应式设计**: 完美支持移动端和桌面端
 - 🎨 **现代UI**: 简洁美观的纯白背景设计
 
-## 🛠️ 手动部署（高级用户）
+## 🛠️ 手动部署
 
 如果您希望手动部署或自定义配置：
 
@@ -57,15 +57,17 @@ wrangler deploy
 wrangler tail
 ```
 
-### 步骤4: 配置KV存储
+### 步骤4: 配置KV存储（可选）
 ```bash
-# 创建KV命名空间
+# 创建KV命名空间（可选，用于数据持久化）
 wrangler kv:namespace create "IP_CACHE"
 
-# 复制返回的ID，更新wrangler.toml中的id字段
-# 然后重新部署
+# 复制返回的ID，更新wrangler.toml中的KV配置
+# 取消注释并填入ID，然后重新部署
 wrangler deploy
 ```
+
+> **注意**: KV存储是可选的。Worker在没有KV存储的情况下也能正常工作，只是无法保存检测历史和订阅数据。
 
 ## ⚙️ 配置说明
 
@@ -132,20 +134,20 @@ wrangler deploy
 
 ### 常见问题
 
-1. **JavaScript错误**
+1. **部署失败**
+   - 检查Wrangler登录状态：`wrangler whoami`
+   - 验证wrangler.toml配置格式
+   - 查看详细错误：`wrangler deploy --verbose`
+
+2. **JavaScript错误**
    - 清除浏览器缓存
    - 确认访问正确的Worker URL
    - 检查浏览器控制台错误
 
-2. **API检测失败**
+3. **API检测失败**
    - 检查网络连接
    - 验证API密钥配置
    - 查看API使用额度
-
-3. **部署失败**
-   - 检查Wrangler登录状态
-   - 验证wrangler.toml配置
-   - 查看部署日志
 
 ### 获取帮助
 
@@ -154,6 +156,12 @@ wrangler deploy
 - 浏览器控制台日志
 - Worker部署日志
 - 操作步骤
+
+## 📚 文档
+
+- [部署后配置指南](docs/POST_DEPLOYMENT_SETUP.md)
+- [详细部署指南](docs/WORKER_DEPLOYMENT.md)
+- [快速开始指南](docs/QUICK_START.md)
 
 ## 🤝 贡献
 

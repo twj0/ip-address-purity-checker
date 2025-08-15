@@ -6,17 +6,18 @@ compatibility_date = "2024-01-01"
 [vars]
 ENVIRONMENT = "production"
 
-# KV存储绑定 - 部署时会自动创建
-# 首次部署后，请更新下面的ID
-[[kv_namespaces]]
-binding = "IP_CACHE"
-id = ""  # 首次部署时留空，系统会自动创建
-preview_id = ""
+# KV存储绑定 - 首次部署后需要手动配置
+# 部署成功后，请运行以下命令创建KV命名空间：
+# wrangler kv:namespace create "IP_CACHE"
+# 然后将返回的ID填入下面的配置并重新部署
+# [[kv_namespaces]]
+# binding = "IP_CACHE"
+# id = "your-kv-namespace-id"
+# preview_id = ""
 
 # 定时任务配置 - 北京时间00:00 (UTC 16:00)
 [triggers]
 crons = ["0 16 * * *"]
 
 # 兼容性设置
-[compatibility_flags]
-nodejs_compat = true
+compatibility_flags = ["nodejs_compat"]
