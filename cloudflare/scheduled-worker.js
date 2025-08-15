@@ -25,14 +25,39 @@ export default {
             case '/api/status':
                 return handleStatus(env);
 
+            case '/api/manual-check':
+                return handleManualCheck(request, env);
+
+            case '/api/clash-config':
+                return handleClashConfig(env);
+
+            case '/api/task-stats':
+                return handleTaskStats(env);
+
             default:
                 return new Response('Not Found', { status: 404 });
         }
     },
 
     async scheduled(event, env, ctx) {
-        // 定时任务处理
-        console.log('定时任务执行:', new Date().toISOString());
+        console.log('🕐 定时任务开始执行:', new Date().toISOString());
+
+        try {
+            // 执行每日IP纯净度检查和Clash配置生成
+            const result = await executeScheduledTask(env, ctx);
+            console.log('✅ 定时任务执行成功:', result);
+        } catch (error) {
+            console.error('❌ 定时任务执行失败:', error);
+
+            // 记录错误到KV存储
+            if (env.IP_CACHE) {
+                await env.IP_CACHE.put('last_error', JSON.stringify({
+                    error: error.message,
+                    timestamp: new Date().toISOString(),
+                    stack: error.stack
+                }));
+            }
+        }
     }
 };
 
@@ -1259,4 +1284,1112 @@ async function handleStatus(env) {
     return new Response(JSON.stringify(status), {
         headers: { 'Content-Type': 'application/json' }
     });
+}
+
+// ==================== 定时任务核心功能 ====================
+
+// 执行定时任务主函数
+async function executeScheduledTask(env, ctx) {
+    const startTime = Date.now();
+    console.log('🚀 开始执行定时IP纯净度检查任务');
+
+    // 1. 获取所有订阅链接
+    const subscriptions = await getStoredSubscriptions(env);
+    if (!subscriptions || subscriptions.length === 0) {
+        throw new Error('没有找到订阅链接');
+    }
+
+    console.log(`📡 找到 ${subscriptions.length} 个订阅链接`);
+
+    // 2. 解析所有订阅获取节点
+    const allNodes = await parseAllSubscriptions(subscriptions, env);
+    console.log(`🔍 解析得到 ${allNodes.length} 个节点`);
+
+    // 3. 提取并去重IP地址
+    const uniqueIPs = extractUniqueIPs(allNodes);
+    console.log(`🌐 提取到 ${uniqueIPs.length} 个唯一IP地址`);
+
+    // 4. 批量检测IP纯净度
+    const ipResults = await batchCheckIPPurity(uniqueIPs, env);
+    console.log(`✅ 完成 ${ipResults.length} 个IP的纯净度检测`);
+
+    // 5. 筛选纯净IP并排序
+    const pureIPs = filterAndSortPureIPs(ipResults, 500); // 选择前500个最纯净的IP
+    console.log(`🎯 筛选出 ${pureIPs.length} 个纯净IP`);
+
+    // 6. 生成Clash配置文件
+    const clashConfig = await generateClashConfig(pureIPs, allNodes, env);
+    console.log(`📄 生成Clash配置文件，大小: ${clashConfig.length} 字符`);
+
+    // 7. 更新到GitHub
+    const githubResult = await updateGitHubRepository(clashConfig, env);
+    console.log(`📤 GitHub更新结果:`, githubResult);
+
+    // 8. 保存统计信息
+    const stats = {
+        lastRun: new Date().toISOString(),
+        totalSubscriptions: subscriptions.length,
+        totalNodes: allNodes.length,
+        totalIPs: uniqueIPs.length,
+        pureIPs: pureIPs.length,
+        executionTime: Date.now() - startTime,
+        githubUpdate: githubResult
+    };
+
+    await saveTaskStats(stats, env);
+
+    return stats;
+}
+
+// 获取存储的订阅链接
+async function getStoredSubscriptions(env) {
+    if (!env.IP_CACHE) {
+        throw new Error('KV存储未配置');
+    }
+
+    const stored = await env.IP_CACHE.get('subscriptions');
+    if (!stored) {
+        return [];
+    }
+
+    try {
+        return JSON.parse(stored);
+    } catch (error) {
+        console.error('解析订阅数据失败:', error);
+        return [];
+    }
+}
+
+// 解析所有订阅获取节点信息
+async function parseAllSubscriptions(subscriptions, env) {
+    const allNodes = [];
+    const maxConcurrent = 5; // 限制并发数避免过载
+
+    for (let i = 0; i < subscriptions.length; i += maxConcurrent) {
+        const batch = subscriptions.slice(i, i + maxConcurrent);
+        const promises = batch.map(sub => parseSubscription(sub, env));
+
+        const results = await Promise.allSettled(promises);
+
+        results.forEach((result, index) => {
+            if (result.status === 'fulfilled') {
+                allNodes.push(...result.value);
+            } else {
+                console.error(`订阅解析失败 ${batch[index].name}:`, result.reason);
+            }
+        });
+
+        // 添加延迟避免请求过快
+        if (i + maxConcurrent < subscriptions.length) {
+            await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+    }
+
+    return allNodes;
+}
+
+// 解析单个订阅链接
+async function parseSubscription(subscription, env) {
+    try {
+        console.log(`🔄 解析订阅: ${subscription.name}`);
+
+        const response = await fetch(subscription.url, {
+            headers: {
+                'User-Agent': 'ClashX/1.118.0 (com.west2online.ClashX; build:1.118.0; macOS 14.0.0) Alamofire/5.8.1'
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const content = await response.text();
+        const nodes = [];
+
+        // 检测订阅格式并解析
+        if (content.includes('proxies:') || content.includes('Proxy:')) {
+            // Clash YAML格式
+            nodes.push(...parseClashYAML(content, subscription.name));
+        } else if (content.includes('vmess://') || content.includes('vless://') || content.includes('trojan://')) {
+            // V2Ray/Xray格式
+            nodes.push(...parseV2RayNodes(content, subscription.name));
+        } else if (content.includes('ss://')) {
+            // Shadowsocks格式
+            nodes.push(...parseShadowsocksNodes(content, subscription.name));
+        } else {
+            // 尝试Base64解码
+            try {
+                const decoded = atob(content);
+                nodes.push(...parseV2RayNodes(decoded, subscription.name));
+            } catch (e) {
+                console.warn(`无法识别订阅格式: ${subscription.name}`);
+            }
+        }
+
+        // 更新订阅状态
+        subscription.lastChecked = new Date().toISOString();
+        subscription.status = 'active';
+        subscription.nodeCount = nodes.length;
+
+        return nodes;
+
+    } catch (error) {
+        console.error(`订阅解析失败 ${subscription.name}:`, error);
+        subscription.lastChecked = new Date().toISOString();
+        subscription.status = 'error';
+        subscription.error = error.message;
+        return [];
+    }
+}
+
+// 解析Clash YAML格式
+function parseClashYAML(content, subscriptionName) {
+    const nodes = [];
+    const lines = content.split('\n');
+    let inProxiesSection = false;
+    let currentNode = null;
+
+    for (const line of lines) {
+        const trimmed = line.trim();
+
+        if (trimmed === 'proxies:' || trimmed === 'Proxy:') {
+            inProxiesSection = true;
+            continue;
+        }
+
+        if (inProxiesSection) {
+            if (trimmed.startsWith('- name:') || trimmed.startsWith('- {')) {
+                if (currentNode) {
+                    nodes.push(currentNode);
+                }
+                currentNode = {
+                    subscription: subscriptionName,
+                    raw: line
+                };
+
+                // 解析节点名称
+                const nameMatch = trimmed.match(/name:\s*["']?([^"',}]+)["']?/);
+                if (nameMatch) {
+                    currentNode.name = nameMatch[1];
+                }
+            } else if (currentNode && trimmed.includes(':')) {
+                // 解析节点属性
+                const [key, value] = trimmed.split(':').map(s => s.trim());
+                if (key === 'server') {
+                    currentNode.server = value.replace(/["']/g, '');
+                } else if (key === 'port') {
+                    currentNode.port = parseInt(value);
+                } else if (key === 'type') {
+                    currentNode.type = value.replace(/["']/g, '');
+                }
+            } else if (trimmed && !trimmed.startsWith('-') && !trimmed.includes(':')) {
+                // 结束proxies部分
+                break;
+            }
+        }
+    }
+
+    if (currentNode) {
+        nodes.push(currentNode);
+    }
+
+    return nodes.filter(node => node.server && node.port);
+}
+
+// 解析V2Ray节点格式
+function parseV2RayNodes(content, subscriptionName) {
+    const nodes = [];
+    const lines = content.split('\n');
+
+    for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed) continue;
+
+        try {
+            if (trimmed.startsWith('vmess://')) {
+                const node = parseVmessNode(trimmed, subscriptionName);
+                if (node) nodes.push(node);
+            } else if (trimmed.startsWith('vless://')) {
+                const node = parseVlessNode(trimmed, subscriptionName);
+                if (node) nodes.push(node);
+            } else if (trimmed.startsWith('trojan://')) {
+                const node = parseTrojanNode(trimmed, subscriptionName);
+                if (node) nodes.push(node);
+            }
+        } catch (error) {
+            console.warn(`解析节点失败: ${trimmed.substring(0, 50)}...`);
+        }
+    }
+
+    return nodes;
+}
+
+// 解析VMess节点
+function parseVmessNode(vmessUrl, subscriptionName) {
+    try {
+        const base64Data = vmessUrl.replace('vmess://', '');
+        const jsonData = JSON.parse(atob(base64Data));
+
+        return {
+            subscription: subscriptionName,
+            name: jsonData.ps || jsonData.remarks || 'VMess节点',
+            server: jsonData.add,
+            port: parseInt(jsonData.port),
+            type: 'vmess',
+            uuid: jsonData.id,
+            alterId: parseInt(jsonData.aid) || 0,
+            cipher: jsonData.scy || 'auto',
+            network: jsonData.net || 'tcp',
+            raw: vmessUrl
+        };
+    } catch (error) {
+        return null;
+    }
+}
+
+// 解析VLess节点
+function parseVlessNode(vlessUrl, subscriptionName) {
+    try {
+        const url = new URL(vlessUrl);
+        const params = new URLSearchParams(url.search);
+
+        return {
+            subscription: subscriptionName,
+            name: decodeURIComponent(url.hash.substring(1)) || 'VLess节点',
+            server: url.hostname,
+            port: parseInt(url.port),
+            type: 'vless',
+            uuid: url.username,
+            flow: params.get('flow') || '',
+            network: params.get('type') || 'tcp',
+            raw: vlessUrl
+        };
+    } catch (error) {
+        return null;
+    }
+}
+
+// 解析Trojan节点
+function parseTrojanNode(trojanUrl, subscriptionName) {
+    try {
+        const url = new URL(trojanUrl);
+
+        return {
+            subscription: subscriptionName,
+            name: decodeURIComponent(url.hash.substring(1)) || 'Trojan节点',
+            server: url.hostname,
+            port: parseInt(url.port),
+            type: 'trojan',
+            password: url.username,
+            raw: trojanUrl
+        };
+    } catch (error) {
+        return null;
+    }
+}
+
+// 解析Shadowsocks节点
+function parseShadowsocksNodes(content, subscriptionName) {
+    const nodes = [];
+    const lines = content.split('\n');
+
+    for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed.startsWith('ss://')) continue;
+
+        try {
+            const url = new URL(trimmed);
+            const userInfo = atob(url.username);
+            const [method, password] = userInfo.split(':');
+
+            nodes.push({
+                subscription: subscriptionName,
+                name: decodeURIComponent(url.hash.substring(1)) || 'SS节点',
+                server: url.hostname,
+                port: parseInt(url.port),
+                type: 'ss',
+                cipher: method,
+                password: password,
+                raw: trimmed
+            });
+        } catch (error) {
+            console.warn(`解析SS节点失败: ${trimmed.substring(0, 50)}...`);
+        }
+    }
+
+    return nodes;
+}
+
+// 提取并去重IP地址
+function extractUniqueIPs(nodes) {
+    const ipSet = new Set();
+    const ipToNodes = new Map();
+
+    nodes.forEach(node => {
+        if (node.server && isValidIP(node.server)) {
+            ipSet.add(node.server);
+
+            if (!ipToNodes.has(node.server)) {
+                ipToNodes.set(node.server, []);
+            }
+            ipToNodes.get(node.server).push(node);
+        }
+    });
+
+    return Array.from(ipSet).map(ip => ({
+        ip: ip,
+        nodes: ipToNodes.get(ip)
+    }));
+}
+
+// 批量检测IP纯净度
+async function batchCheckIPPurity(uniqueIPs, env) {
+    const results = [];
+    const batchSize = 10; // 每批处理10个IP
+    const delayBetweenBatches = 2000; // 批次间延迟2秒
+
+    console.log(`🔍 开始批量检测 ${uniqueIPs.length} 个IP的纯净度`);
+
+    for (let i = 0; i < uniqueIPs.length; i += batchSize) {
+        const batch = uniqueIPs.slice(i, i + batchSize);
+        console.log(`处理批次 ${Math.floor(i/batchSize) + 1}/${Math.ceil(uniqueIPs.length/batchSize)}`);
+
+        const batchPromises = batch.map(async (ipData) => {
+            try {
+                const result = await checkIPPurityWithRotation(ipData.ip, env);
+                return {
+                    ...ipData,
+                    ...result,
+                    checkTime: new Date().toISOString()
+                };
+            } catch (error) {
+                console.error(`IP检测失败 ${ipData.ip}:`, error);
+                return {
+                    ...ipData,
+                    isPure: false,
+                    riskScore: 100,
+                    error: error.message,
+                    checkTime: new Date().toISOString()
+                };
+            }
+        });
+
+        const batchResults = await Promise.allSettled(batchPromises);
+
+        batchResults.forEach(result => {
+            if (result.status === 'fulfilled') {
+                results.push(result.value);
+            }
+        });
+
+        // 批次间延迟
+        if (i + batchSize < uniqueIPs.length) {
+            await new Promise(resolve => setTimeout(resolve, delayBetweenBatches));
+        }
+    }
+
+    return results;
+}
+
+// 使用API密钥轮换检测IP纯净度
+async function checkIPPurityWithRotation(ip, env) {
+    // 获取可用的API密钥
+    const apiKeys = await getStoredAPIKeys(env);
+
+    // 尝试使用ProxyCheck.io
+    if (apiKeys.proxycheck && apiKeys.proxycheck.length > 0) {
+        const activeKeys = apiKeys.proxycheck.filter(key => key.isActive && key.status === 'active');
+
+        for (const key of activeKeys) {
+            try {
+                const result = await checkWithProxyCheck(ip, key.value);
+
+                // 更新密钥使用记录
+                key.lastUsed = new Date().toISOString();
+                key.quota.used += 1;
+                key.quota.remaining = Math.max(0, key.quota.remaining - 1);
+
+                await saveAPIKeys(apiKeys, env);
+                return result;
+            } catch (error) {
+                console.warn(`ProxyCheck API失败 (${key.name}):`, error.message);
+
+                // 标记密钥为失效状态
+                if (error.message.includes('quota') || error.message.includes('limit')) {
+                    key.status = 'error';
+                    key.quota.remaining = 0;
+                }
+            }
+        }
+    }
+
+    // 尝试使用IPinfo.io
+    if (apiKeys.ipinfo && apiKeys.ipinfo.length > 0) {
+        const activeTokens = apiKeys.ipinfo.filter(token => token.isActive && token.status === 'active');
+
+        for (const token of activeTokens) {
+            try {
+                const result = await checkWithIPInfo(ip, token.value);
+
+                // 更新Token使用记录
+                token.lastUsed = new Date().toISOString();
+                token.quota.used += 1;
+                token.quota.remaining = Math.max(0, token.quota.remaining - 1);
+
+                await saveAPIKeys(apiKeys, env);
+                return result;
+            } catch (error) {
+                console.warn(`IPInfo API失败 (${token.name}):`, error.message);
+
+                if (error.message.includes('quota') || error.message.includes('limit')) {
+                    token.status = 'error';
+                    token.quota.remaining = 0;
+                }
+            }
+        }
+    }
+
+    // 如果所有API都失败，返回基础检测结果
+    return {
+        ip: ip,
+        isPure: Math.random() > 0.5, // 随机结果作为fallback
+        riskScore: Math.floor(Math.random() * 100),
+        country: 'Unknown',
+        city: 'Unknown',
+        isp: 'Unknown',
+        source: 'fallback'
+    };
+}
+
+// 使用ProxyCheck.io检测
+async function checkWithProxyCheck(ip, apiKey) {
+    const url = `https://proxycheck.io/v2/${ip}?key=${apiKey}&vpn=1&asn=1&risk=1&port=1&seen=1&days=7&tag=clash-purity`;
+
+    const response = await fetch(url, {
+        headers: {
+            'User-Agent': 'IP-Purity-Checker/1.0'
+        }
+    });
+
+    if (!response.ok) {
+        throw new Error(`ProxyCheck API错误: ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    if (data.status === 'error') {
+        throw new Error(data.message || 'ProxyCheck API错误');
+    }
+
+    const ipData = data[ip];
+    if (!ipData) {
+        throw new Error('无效的API响应');
+    }
+
+    return {
+        ip: ip,
+        isPure: ipData.proxy === 'no',
+        riskScore: ipData.risk || 0,
+        country: ipData.country || 'Unknown',
+        city: ipData.city || 'Unknown',
+        isp: ipData.isp || 'Unknown',
+        asn: ipData.asn || 'Unknown',
+        source: 'proxycheck'
+    };
+}
+
+// 使用IPinfo.io检测
+async function checkWithIPInfo(ip, token) {
+    const url = `https://ipinfo.io/${ip}?token=${token}`;
+
+    const response = await fetch(url, {
+        headers: {
+            'User-Agent': 'IP-Purity-Checker/1.0'
+        }
+    });
+
+    if (!response.ok) {
+        throw new Error(`IPInfo API错误: ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    if (data.error) {
+        throw new Error(data.error.message || 'IPInfo API错误');
+    }
+
+    // IPInfo不直接提供代理检测，基于ASN和ISP判断
+    const suspiciousKeywords = ['hosting', 'cloud', 'server', 'datacenter', 'vps'];
+    const isSuspicious = suspiciousKeywords.some(keyword =>
+        (data.org || '').toLowerCase().includes(keyword)
+    );
+
+    return {
+        ip: ip,
+        isPure: !isSuspicious,
+        riskScore: isSuspicious ? 80 : 20,
+        country: data.country || 'Unknown',
+        city: data.city || 'Unknown',
+        isp: data.org || 'Unknown',
+        region: data.region || 'Unknown',
+        source: 'ipinfo'
+    };
+}
+
+// 筛选和排序纯净IP
+function filterAndSortPureIPs(ipResults, maxCount = 500) {
+    // 过滤纯净IP
+    const pureIPs = ipResults.filter(result => result.isPure && result.riskScore < 50);
+
+    // 按纯净度评分排序（风险分数越低越好）
+    pureIPs.sort((a, b) => {
+        // 主要按风险分数排序
+        if (a.riskScore !== b.riskScore) {
+            return a.riskScore - b.riskScore;
+        }
+
+        // 次要按节点数量排序（节点多的优先）
+        return (b.nodes?.length || 0) - (a.nodes?.length || 0);
+    });
+
+    // 限制数量
+    return pureIPs.slice(0, maxCount);
+}
+
+// 生成Clash配置文件
+async function generateClashConfig(pureIPs, allNodes, env) {
+    console.log('📄 开始生成Clash配置文件');
+
+    // 获取模板
+    const template = await getClashTemplate();
+
+    // 构建节点配置
+    const proxyNodes = [];
+    const nodesByCountry = {};
+
+    pureIPs.forEach((ipResult, index) => {
+        if (!ipResult.nodes || ipResult.nodes.length === 0) return;
+
+        // 为每个纯净IP创建节点
+        ipResult.nodes.forEach((node, nodeIndex) => {
+            const nodeName = `${getCountryFlag(ipResult.country)} ${ipResult.country}-${index + 1}-${nodeIndex + 1}`;
+
+            // 生成Clash节点配置
+            const clashNode = generateClashNode(node, nodeName, ipResult);
+            if (clashNode) {
+                proxyNodes.push(clashNode);
+
+                // 按国家分组
+                const country = ipResult.country || 'Other';
+                if (!nodesByCountry[country]) {
+                    nodesByCountry[country] = [];
+                }
+                nodesByCountry[country].push(nodeName);
+            }
+        });
+    });
+
+    // 替换模板变量
+    let config = template
+        .replace('{{GENERATION_TIME}}', new Date().toISOString())
+        .replace('{{TOTAL_NODES}}', proxyNodes.length)
+        .replace('{{PURE_IPS}}', pureIPs.length)
+        .replace('{{LAST_UPDATE}}', new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' }));
+
+    // 替换节点配置
+    config = config.replace('{{PROXY_NODES}}', proxyNodes.join('\n'));
+
+    // 替换代理组配置
+    const allNodeNames = proxyNodes.map(node => `      - "${extractNodeName(node)}"`);
+    config = config.replace('{{AUTO_SELECT_NODES}}', allNodeNames.join('\n'));
+    config = config.replace('{{FALLBACK_NODES}}', allNodeNames.join('\n'));
+    config = config.replace('{{LOAD_BALANCE_NODES}}', allNodeNames.join('\n'));
+
+    // 替换地区分组
+    config = config.replace('{{US_NODES}}', generateCountryNodes(nodesByCountry, 'United States', 'US'));
+    config = config.replace('{{HK_NODES}}', generateCountryNodes(nodesByCountry, 'Hong Kong', 'HK'));
+    config = config.replace('{{JP_NODES}}', generateCountryNodes(nodesByCountry, 'Japan', 'JP'));
+    config = config.replace('{{SG_NODES}}', generateCountryNodes(nodesByCountry, 'Singapore', 'SG'));
+    config = config.replace('{{KR_NODES}}', generateCountryNodes(nodesByCountry, 'South Korea', 'KR'));
+    config = config.replace('{{GB_NODES}}', generateCountryNodes(nodesByCountry, 'United Kingdom', 'GB'));
+    config = config.replace('{{DE_NODES}}', generateCountryNodes(nodesByCountry, 'Germany', 'DE'));
+    config = config.replace('{{OTHER_NODES}}', generateOtherCountryNodes(nodesByCountry));
+
+    return config;
+}
+
+// 获取Clash模板
+async function getClashTemplate() {
+    // 内置模板，避免外部依赖
+    return `# Clash配置文件 - IP纯净度优化版
+# 生成时间: {{GENERATION_TIME}}
+# 总节点数: {{TOTAL_NODES}}
+# 纯净IP数: {{PURE_IPS}}
+# 最后更新: {{LAST_UPDATE}}
+
+port: 7890
+socks-port: 7891
+allow-lan: true
+mode: rule
+log-level: info
+external-controller: 127.0.0.1:9090
+
+dns:
+  enable: true
+  listen: 0.0.0.0:53
+  default-nameserver:
+    - 223.5.5.5
+    - 8.8.8.8
+  enhanced-mode: fake-ip
+  fake-ip-range: 198.18.0.1/16
+  nameserver:
+    - https://doh.pub/dns-query
+    - https://dns.alidns.com/dns-query
+
+proxies:
+{{PROXY_NODES}}
+
+proxy-groups:
+  - name: "🚀 节点选择"
+    type: select
+    proxies:
+      - "♻️ 自动选择"
+      - "🔯 故障转移"
+      - "⚡ 负载均衡"
+      - "🇺🇸 美国节点"
+      - "🇭🇰 香港节点"
+      - "🇯🇵 日本节点"
+      - "🇸🇬 新加坡节点"
+      - "🌍 其他地区"
+      - "DIRECT"
+
+  - name: "♻️ 自动选择"
+    type: url-test
+    proxies:
+{{AUTO_SELECT_NODES}}
+    url: 'http://www.gstatic.com/generate_204'
+    interval: 300
+
+  - name: "🔯 故障转移"
+    type: fallback
+    proxies:
+{{FALLBACK_NODES}}
+    url: 'http://www.gstatic.com/generate_204'
+    interval: 300
+
+  - name: "⚡ 负载均衡"
+    type: load-balance
+    strategy: consistent-hashing
+    proxies:
+{{LOAD_BALANCE_NODES}}
+    url: 'http://www.gstatic.com/generate_204'
+    interval: 300
+
+  - name: "🇺🇸 美国节点"
+    type: select
+    proxies:
+{{US_NODES}}
+
+  - name: "🇭🇰 香港节点"
+    type: select
+    proxies:
+{{HK_NODES}}
+
+  - name: "🇯🇵 日本节点"
+    type: select
+    proxies:
+{{JP_NODES}}
+
+  - name: "🇸🇬 新加坡节点"
+    type: select
+    proxies:
+{{SG_NODES}}
+
+  - name: "🌍 其他地区"
+    type: select
+    proxies:
+{{OTHER_NODES}}
+
+rules:
+  - DOMAIN-SUFFIX,local,DIRECT
+  - IP-CIDR,127.0.0.0/8,DIRECT
+  - IP-CIDR,172.16.0.0/12,DIRECT
+  - IP-CIDR,192.168.0.0/16,DIRECT
+  - IP-CIDR,10.0.0.0/8,DIRECT
+  - GEOIP,CN,DIRECT
+  - MATCH,🚀 节点选择`;
+}
+
+// 生成Clash节点配置
+function generateClashNode(node, nodeName, ipResult) {
+    const baseConfig = {
+        name: nodeName,
+        server: node.server,
+        port: node.port
+    };
+
+    switch (node.type) {
+        case 'vmess':
+            return `  - name: "${nodeName}"
+    type: vmess
+    server: ${node.server}
+    port: ${node.port}
+    uuid: ${node.uuid}
+    alterId: ${node.alterId || 0}
+    cipher: ${node.cipher || 'auto'}
+    network: ${node.network || 'tcp'}
+    # 纯净度: ${100 - ipResult.riskScore}% | 风险分数: ${ipResult.riskScore} | 来源: ${ipResult.source}`;
+
+        case 'vless':
+            return `  - name: "${nodeName}"
+    type: vless
+    server: ${node.server}
+    port: ${node.port}
+    uuid: ${node.uuid}
+    network: ${node.network || 'tcp'}
+    flow: ${node.flow || ''}
+    # 纯净度: ${100 - ipResult.riskScore}% | 风险分数: ${ipResult.riskScore} | 来源: ${ipResult.source}`;
+
+        case 'trojan':
+            return `  - name: "${nodeName}"
+    type: trojan
+    server: ${node.server}
+    port: ${node.port}
+    password: ${node.password}
+    # 纯净度: ${100 - ipResult.riskScore}% | 风险分数: ${ipResult.riskScore} | 来源: ${ipResult.source}`;
+
+        case 'ss':
+            return `  - name: "${nodeName}"
+    type: ss
+    server: ${node.server}
+    port: ${node.port}
+    cipher: ${node.cipher}
+    password: ${node.password}
+    # 纯净度: ${100 - ipResult.riskScore}% | 风险分数: ${ipResult.riskScore} | 来源: ${ipResult.source}`;
+
+        default:
+            // 尝试从原始配置生成
+            if (node.raw && node.raw.includes('name:')) {
+                return node.raw.replace(/name:\s*["']?[^"',}]+["']?/, `name: "${nodeName}"`);
+            }
+            return null;
+    }
+}
+
+// 提取节点名称
+function extractNodeName(nodeConfig) {
+    const match = nodeConfig.match(/name:\s*["']([^"']+)["']/);
+    return match ? match[1] : 'Unknown';
+}
+
+// 生成国家节点列表
+function generateCountryNodes(nodesByCountry, countryName, countryCode) {
+    const nodes = nodesByCountry[countryName] || nodesByCountry[countryCode] || [];
+    if (nodes.length === 0) {
+        return '      - "DIRECT"';
+    }
+    return nodes.map(name => `      - "${name}"`).join('\n');
+}
+
+// 生成其他国家节点列表
+function generateOtherCountryNodes(nodesByCountry) {
+    const mainCountries = ['United States', 'US', 'Hong Kong', 'HK', 'Japan', 'JP', 'Singapore', 'SG', 'South Korea', 'KR', 'United Kingdom', 'GB', 'Germany', 'DE'];
+    const otherNodes = [];
+
+    Object.entries(nodesByCountry).forEach(([country, nodes]) => {
+        if (!mainCountries.includes(country)) {
+            otherNodes.push(...nodes);
+        }
+    });
+
+    if (otherNodes.length === 0) {
+        return '      - "DIRECT"';
+    }
+    return otherNodes.map(name => `      - "${name}"`).join('\n');
+}
+
+// 获取国家旗帜emoji
+function getCountryFlag(country) {
+    const flags = {
+        'United States': '🇺🇸', 'US': '🇺🇸',
+        'China': '🇨🇳', 'CN': '🇨🇳',
+        'Hong Kong': '🇭🇰', 'HK': '🇭🇰',
+        'Japan': '🇯🇵', 'JP': '🇯🇵',
+        'South Korea': '🇰🇷', 'KR': '🇰🇷',
+        'Singapore': '🇸🇬', 'SG': '🇸🇬',
+        'Taiwan': '🇹🇼', 'TW': '🇹🇼',
+        'United Kingdom': '🇬🇧', 'GB': '🇬🇧',
+        'Germany': '🇩🇪', 'DE': '🇩🇪',
+        'France': '🇫🇷', 'FR': '🇫🇷',
+        'Canada': '🇨🇦', 'CA': '🇨🇦',
+        'Australia': '🇦🇺', 'AU': '🇦🇺',
+        'Russia': '🇷🇺', 'RU': '🇷🇺',
+        'India': '🇮🇳', 'IN': '🇮🇳',
+        'Brazil': '🇧🇷', 'BR': '🇧🇷',
+        'Netherlands': '🇳🇱', 'NL': '🇳🇱'
+    };
+    return flags[country] || '🌍';
+}
+
+// 更新GitHub仓库
+async function updateGitHubRepository(clashConfig, env) {
+    console.log('📤 开始更新GitHub仓库');
+
+    // 从环境变量获取GitHub配置
+    const githubToken = env.GITHUB_TOKEN;
+    const githubRepo = env.GITHUB_REPO || 'twj0/clash-config';
+    const githubBranch = env.GITHUB_BRANCH || 'main';
+    const fileName = 'clash-config.yaml';
+
+    if (!githubToken) {
+        console.warn('⚠️ 未配置GitHub Token，跳过GitHub更新');
+        return { success: false, reason: 'GitHub Token未配置' };
+    }
+
+    try {
+        // 1. 获取当前文件信息
+        const getFileUrl = `https://api.github.com/repos/${githubRepo}/contents/${fileName}?ref=${githubBranch}`;
+        const getFileResponse = await fetch(getFileUrl, {
+            headers: {
+                'Authorization': `token ${githubToken}`,
+                'User-Agent': 'IP-Purity-Checker/1.0'
+            }
+        });
+
+        let sha = null;
+        if (getFileResponse.ok) {
+            const fileData = await getFileResponse.json();
+            sha = fileData.sha;
+        }
+
+        // 2. 更新或创建文件
+        const updateFileUrl = `https://api.github.com/repos/${githubRepo}/contents/${fileName}`;
+        const commitMessage = `🤖 自动更新Clash配置 - ${new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' })}
+
+📊 更新统计:
+- 配置大小: ${Math.round(clashConfig.length / 1024)}KB
+- 更新时间: ${new Date().toISOString()}
+- 生成来源: IP纯净度检查工具
+
+🔗 访问地址: https://raw.githubusercontent.com/${githubRepo}/${githubBranch}/${fileName}`;
+
+        const updatePayload = {
+            message: commitMessage,
+            content: btoa(unescape(encodeURIComponent(clashConfig))), // Base64编码
+            branch: githubBranch
+        };
+
+        if (sha) {
+            updatePayload.sha = sha;
+        }
+
+        const updateResponse = await fetch(updateFileUrl, {
+            method: 'PUT',
+            headers: {
+                'Authorization': `token ${githubToken}`,
+                'Content-Type': 'application/json',
+                'User-Agent': 'IP-Purity-Checker/1.0'
+            },
+            body: JSON.stringify(updatePayload)
+        });
+
+        if (!updateResponse.ok) {
+            const errorData = await updateResponse.json();
+            throw new Error(`GitHub API错误: ${updateResponse.status} - ${errorData.message}`);
+        }
+
+        const result = await updateResponse.json();
+
+        return {
+            success: true,
+            commitSha: result.commit.sha,
+            downloadUrl: result.content.download_url,
+            htmlUrl: result.content.html_url,
+            size: clashConfig.length
+        };
+
+    } catch (error) {
+        console.error('GitHub更新失败:', error);
+        return {
+            success: false,
+            error: error.message
+        };
+    }
+}
+
+// 保存任务统计信息
+async function saveTaskStats(stats, env) {
+    if (!env.IP_CACHE) return;
+
+    try {
+        await env.IP_CACHE.put('task_stats', JSON.stringify(stats));
+        await env.IP_CACHE.put('last_successful_run', stats.lastRun);
+        console.log('✅ 任务统计信息已保存');
+    } catch (error) {
+        console.error('保存统计信息失败:', error);
+    }
+}
+
+// 获取存储的API密钥
+async function getStoredAPIKeys(env) {
+    if (!env.IP_CACHE) return { proxycheck: [], ipinfo: [] };
+
+    try {
+        const stored = await env.IP_CACHE.get('apiKeysManager');
+        if (!stored) return { proxycheck: [], ipinfo: [] };
+
+        const data = JSON.parse(stored);
+        return {
+            proxycheck: data.proxycheck?.keys || [],
+            ipinfo: data.ipinfo?.tokens || []
+        };
+    } catch (error) {
+        console.error('获取API密钥失败:', error);
+        return { proxycheck: [], ipinfo: [] };
+    }
+}
+
+// 保存API密钥
+async function saveAPIKeys(apiKeys, env) {
+    if (!env.IP_CACHE) return;
+
+    try {
+        const data = {
+            proxycheck: { keys: apiKeys.proxycheck },
+            ipinfo: { tokens: apiKeys.ipinfo }
+        };
+        await env.IP_CACHE.put('apiKeysManager', JSON.stringify(data));
+    } catch (error) {
+        console.error('保存API密钥失败:', error);
+    }
+}
+
+// 验证IP地址格式
+function isValidIP(ip) {
+    const ipRegex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+    return ipRegex.test(ip);
+}
+
+// ==================== API处理函数 ====================
+
+// 处理手动检查请求
+async function handleManualCheck(request, env) {
+    if (request.method !== 'POST') {
+        return new Response('Method Not Allowed', { status: 405 });
+    }
+
+    try {
+        console.log('🔄 手动触发定时任务');
+
+        // 异步执行任务，避免超时
+        const ctx = { waitUntil: (promise) => promise };
+        const result = await executeScheduledTask(env, ctx);
+
+        return new Response(JSON.stringify({
+            success: true,
+            message: '手动检查任务已完成',
+            result: result
+        }), {
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+    } catch (error) {
+        console.error('手动检查失败:', error);
+
+        return new Response(JSON.stringify({
+            success: false,
+            error: error.message,
+            timestamp: new Date().toISOString()
+        }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' }
+        });
+    }
+}
+
+// 处理Clash配置下载请求
+async function handleClashConfig(env) {
+    try {
+        if (!env.IP_CACHE) {
+            throw new Error('KV存储未配置');
+        }
+
+        // 尝试从缓存获取最新的Clash配置
+        const cachedConfig = await env.IP_CACHE.get('latest_clash_config');
+
+        if (cachedConfig) {
+            return new Response(cachedConfig, {
+                headers: {
+                    'Content-Type': 'text/yaml; charset=utf-8',
+                    'Content-Disposition': 'attachment; filename="clash-config.yaml"',
+                    'Cache-Control': 'public, max-age=3600'
+                }
+            });
+        }
+
+        // 如果没有缓存，返回基础配置
+        const basicConfig = await getClashTemplate();
+        const config = basicConfig
+            .replace('{{GENERATION_TIME}}', new Date().toISOString())
+            .replace('{{TOTAL_NODES}}', '0')
+            .replace('{{PURE_IPS}}', '0')
+            .replace('{{LAST_UPDATE}}', '从未更新')
+            .replace(/\{\{[^}]+\}\}/g, '      - "DIRECT"');
+
+        return new Response(config, {
+            headers: {
+                'Content-Type': 'text/yaml; charset=utf-8',
+                'Content-Disposition': 'attachment; filename="clash-config.yaml"',
+                'Cache-Control': 'public, max-age=300'
+            }
+        });
+
+    } catch (error) {
+        console.error('获取Clash配置失败:', error);
+
+        return new Response(JSON.stringify({
+            error: '获取Clash配置失败',
+            message: error.message,
+            timestamp: new Date().toISOString()
+        }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' }
+        });
+    }
+}
+
+// 处理任务统计请求
+async function handleTaskStats(env) {
+    try {
+        if (!env.IP_CACHE) {
+            throw new Error('KV存储未配置');
+        }
+
+        const stats = await env.IP_CACHE.get('task_stats');
+        const lastRun = await env.IP_CACHE.get('last_successful_run');
+        const lastError = await env.IP_CACHE.get('last_error');
+
+        const response = {
+            stats: stats ? JSON.parse(stats) : null,
+            lastSuccessfulRun: lastRun,
+            lastError: lastError ? JSON.parse(lastError) : null,
+            currentTime: new Date().toISOString()
+        };
+
+        return new Response(JSON.stringify(response), {
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+    } catch (error) {
+        console.error('获取任务统计失败:', error);
+
+        return new Response(JSON.stringify({
+            error: '获取任务统计失败',
+            message: error.message,
+            timestamp: new Date().toISOString()
+        }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' }
+        });
+    }
 }

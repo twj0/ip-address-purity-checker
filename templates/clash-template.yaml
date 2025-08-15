@@ -1,0 +1,182 @@
+# Clash配置文件模板 - IP纯净度优化版
+# 生成时间: {{GENERATION_TIME}}
+# 总节点数: {{TOTAL_NODES}}
+# 纯净IP数: {{PURE_IPS}}
+# 最后更新: {{LAST_UPDATE}}
+
+port: 7890
+socks-port: 7891
+allow-lan: true
+mode: rule
+log-level: info
+external-controller: 127.0.0.1:9090
+
+# DNS配置
+dns:
+  enable: true
+  listen: 0.0.0.0:53
+  default-nameserver:
+    - 223.5.5.5
+    - 8.8.8.8
+  enhanced-mode: fake-ip
+  fake-ip-range: 198.18.0.1/16
+  nameserver:
+    - https://doh.pub/dns-query
+    - https://dns.alidns.com/dns-query
+  fallback:
+    - https://cloudflare-dns.com/dns-query
+    - https://dns.google/dns-query
+
+# 代理节点配置
+proxies:
+{{PROXY_NODES}}
+
+# 代理组配置
+proxy-groups:
+  # 主选择组
+  - name: "🚀 节点选择"
+    type: select
+    proxies:
+      - "♻️ 自动选择"
+      - "🔯 故障转移"
+      - "⚡ 负载均衡"
+      - "🇺🇸 美国节点"
+      - "🇭🇰 香港节点"
+      - "🇯🇵 日本节点"
+      - "🇸🇬 新加坡节点"
+      - "🇰🇷 韩国节点"
+      - "🇬🇧 英国节点"
+      - "🇩🇪 德国节点"
+      - "🌍 其他地区"
+      - "DIRECT"
+
+  # 自动选择组
+  - name: "♻️ 自动选择"
+    type: url-test
+    proxies:
+{{AUTO_SELECT_NODES}}
+    url: 'http://www.gstatic.com/generate_204'
+    interval: 300
+    tolerance: 50
+
+  # 故障转移组
+  - name: "🔯 故障转移"
+    type: fallback
+    proxies:
+{{FALLBACK_NODES}}
+    url: 'http://www.gstatic.com/generate_204'
+    interval: 300
+
+  # 负载均衡组
+  - name: "⚡ 负载均衡"
+    type: load-balance
+    strategy: consistent-hashing
+    proxies:
+{{LOAD_BALANCE_NODES}}
+    url: 'http://www.gstatic.com/generate_204'
+    interval: 300
+
+  # 地区分组
+  - name: "🇺🇸 美国节点"
+    type: select
+    proxies:
+{{US_NODES}}
+
+  - name: "🇭🇰 香港节点"
+    type: select
+    proxies:
+{{HK_NODES}}
+
+  - name: "🇯🇵 日本节点"
+    type: select
+    proxies:
+{{JP_NODES}}
+
+  - name: "🇸🇬 新加坡节点"
+    type: select
+    proxies:
+{{SG_NODES}}
+
+  - name: "🇰🇷 韩国节点"
+    type: select
+    proxies:
+{{KR_NODES}}
+
+  - name: "🇬🇧 英国节点"
+    type: select
+    proxies:
+{{GB_NODES}}
+
+  - name: "🇩🇪 德国节点"
+    type: select
+    proxies:
+{{DE_NODES}}
+
+  - name: "🌍 其他地区"
+    type: select
+    proxies:
+{{OTHER_NODES}}
+
+  # 特殊用途组
+  - name: "📺 流媒体"
+    type: select
+    proxies:
+      - "🚀 节点选择"
+      - "♻️ 自动选择"
+      - "🇺🇸 美国节点"
+      - "🇭🇰 香港节点"
+      - "🇯🇵 日本节点"
+      - "🇸🇬 新加坡节点"
+
+  - name: "🎮 游戏加速"
+    type: select
+    proxies:
+      - "DIRECT"
+      - "🚀 节点选择"
+      - "🇭🇰 香港节点"
+      - "🇯🇵 日本节点"
+      - "🇰🇷 韩国节点"
+
+  - name: "🛡️ 广告拦截"
+    type: select
+    proxies:
+      - "REJECT"
+      - "DIRECT"
+
+# 规则配置
+rules:
+  # 本地网络
+  - DOMAIN-SUFFIX,local,DIRECT
+  - IP-CIDR,127.0.0.0/8,DIRECT
+  - IP-CIDR,172.16.0.0/12,DIRECT
+  - IP-CIDR,192.168.0.0/16,DIRECT
+  - IP-CIDR,10.0.0.0/8,DIRECT
+  - IP-CIDR,17.0.0.0/8,DIRECT
+  - IP-CIDR,100.64.0.0/10,DIRECT
+
+  # 广告拦截
+  - DOMAIN-SUFFIX,googlesyndication.com,🛡️ 广告拦截
+  - DOMAIN-SUFFIX,googleadservices.com,🛡️ 广告拦截
+  - DOMAIN-SUFFIX,doubleclick.net,🛡️ 广告拦截
+
+  # 流媒体服务
+  - DOMAIN-SUFFIX,netflix.com,📺 流媒体
+  - DOMAIN-SUFFIX,youtube.com,📺 流媒体
+  - DOMAIN-SUFFIX,googlevideo.com,📺 流媒体
+  - DOMAIN-SUFFIX,hulu.com,📺 流媒体
+  - DOMAIN-SUFFIX,disney.com,📺 流媒体
+
+  # 游戏平台
+  - DOMAIN-SUFFIX,steam.com,🎮 游戏加速
+  - DOMAIN-SUFFIX,steamcommunity.com,🎮 游戏加速
+  - DOMAIN-SUFFIX,epicgames.com,🎮 游戏加速
+
+  # 国内网站直连
+  - DOMAIN-SUFFIX,cn,DIRECT
+  - DOMAIN-KEYWORD,baidu,DIRECT
+  - DOMAIN-KEYWORD,taobao,DIRECT
+  - DOMAIN-KEYWORD,alipay,DIRECT
+  - GEOIP,CN,DIRECT
+
+  # 其他流量走代理
+  - MATCH,🚀 节点选择
