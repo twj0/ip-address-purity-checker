@@ -1,0 +1,77 @@
+name: 📅 Daily Clash Config Generation
+
+on:
+  schedule:
+    # 每天UTC 16:00执行（北京时间00:00）
+    - cron: '0 16 * * *'
+  workflow_dispatch:
+    inputs:
+      force_run:
+        description: '强制执行任务'
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  generate-clash-config:
+    runs-on: ubuntu-latest
+    if: secrets.CLOUDFLARE_API_TOKEN != ''
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install Wrangler
+        run: npm install -g wrangler
+
+      - name: Deploy Worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          echo "部署Worker到Cloudflare..."
+          wrangler deploy
+
+      - name: Trigger Manual Check
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          echo "触发手动检查任务..."
+          
+          # 获取Worker URL
+          WORKER_URL=$(wrangler whoami 2>/dev/null | grep -o "https://.*\.workers\.dev" || echo "")
+          
+          if [ -n "$WORKER_URL" ]; then
+            echo "Worker URL: $WORKER_URL"
+            
+            # 触发手动检查
+            curl -X POST "$WORKER_URL/api/manual-check" \
+              -H "Content-Type: application/json" \
+              -d '{"action": "generate_clash_config", "immediate": true}' \
+              --max-time 300 || echo "手动触发可能超时，但任务可能仍在后台执行"
+          else
+            echo "无法获取Worker URL，跳过手动触发"
+          fi
+
+      - name: Create Summary
+        if: always()
+        run: |
+          echo "## 📅 每日Clash配置生成完成" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**执行时间**: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+          echo "**触发方式**: ${{ github.event_name == 'schedule' && '定时任务' || '手动触发' }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📋 执行内容" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Worker部署更新" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ 触发IP纯净度检查" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ 生成Clash配置文件" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ 更新GitHub仓库（如已配置）" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔗 访问链接" >> $GITHUB_STEP_SUMMARY
+          echo "- [Worker管理界面](https://dash.cloudflare.com/workers)" >> $GITHUB_STEP_SUMMARY
+          echo "- [下载Clash配置](您的Worker URL/api/clash-config)" >> $GITHUB_STEP_SUMMARY

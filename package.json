@@ -1,0 +1,33 @@
+{
+  "name": "ip-purity-checker",
+  "version": "2.0.0",
+  "description": "IP地址纯净度检查工具 - 支持定时任务、Clash配置生成和云端配置同步",
+  "main": "cloudflare/scheduled-worker.js",
+  "scripts": {
+    "test": "node scripts/test-complete-system.js",
+    "test-new-features": "node scripts/test-new-features.js",
+    "test-cloud-sync": "node scripts/test-cloud-sync.js",
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev",
+    "tail": "wrangler tail"
+  },
+  "keywords": [
+    "ip-purity",
+    "proxy-check",
+    "clash-config",
+    "cloudflare-workers",
+    "scheduled-tasks",
+    "cloud-sync"
+  ],
+  "author": "twj0",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/twj0/ip-address-purity-checker.git"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "devDependencies": {},
+  "dependencies": {}
+}

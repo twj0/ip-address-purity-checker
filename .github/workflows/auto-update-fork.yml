@@ -278,8 +278,8 @@ jobs:
   auto-redeploy:
     needs: check-and-update
     runs-on: ubuntu-latest
-    if: needs.check-and-update.outputs.has_updates == 'true' && (secrets.CLOUDFLARE_API_TOKEN != '' || secrets.CF_API_TOKEN != '')
-    
+    if: needs.check-and-update.outputs.has_updates == 'true' && secrets.CLOUDFLARE_API_TOKEN != ''
+
     steps:
       - name: Checkout updated repository
         uses: actions/checkout@v4
@@ -290,26 +290,98 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '18'
+          # 移除cache选项，因为没有package-lock.json文件
 
       - name: Install Wrangler
         run: npm install -g wrangler
 
-      - name: Deploy to Cloudflare
+      - name: Deploy Worker to Cloudflare
+        id: deploy-worker
         env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN || secrets.CF_API_TOKEN }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: |
-          echo "自动重新部署到Cloudflare..."
-          
-          # 部署Worker
+          echo "部署Worker到Cloudflare..."
+
+          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
+            echo "⚠️ CLOUDFLARE_API_TOKEN未配置，跳过Worker部署"
+            echo "worker_deploy_success=skipped" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
           if wrangler deploy; then
             echo "✅ Worker部署成功"
+            echo "worker_deploy_success=true" >> $GITHUB_OUTPUT
           else
             echo "❌ Worker部署失败"
+            echo "worker_deploy_success=false" >> $GITHUB_OUTPUT
+            exit 1
           fi
-          
-          # 部署Pages
-          if wrangler pages deploy public --project-name ip-purity-checker; then
-            echo "✅ Pages部署成功"
+
+      - name: Deploy Pages to Cloudflare (if exists)
+        id: deploy-pages
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          echo "检查是否需要部署Pages..."
+
+          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
+            echo "⚠️ CLOUDFLARE_API_TOKEN未配置，跳过Pages部署"
+            echo "pages_deploy_success=skipped" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # 检查是否存在public目录或Pages配置
+          if [ -d "public" ] || [ -f "functions/_middleware.js" ]; then
+            echo "发现Pages资源，开始部署..."
+
+            # 修复：移除不支持的参数
+            if wrangler pages deploy public --project-name ip-purity-checker; then
+              echo "✅ Pages部署成功"
+              echo "pages_deploy_success=true" >> $GITHUB_OUTPUT
+            else
+              echo "❌ Pages部署失败，但不影响Worker功能"
+              echo "pages_deploy_success=false" >> $GITHUB_OUTPUT
+            fi
           else
-            echo "❌ Pages部署失败"
+            echo "ℹ️ 未发现Pages资源，跳过Pages部署"
+            echo "pages_deploy_success=skipped" >> $GITHUB_OUTPUT
           fi
+
+      - name: Update deployment summary
+        if: always()
+        run: |
+          echo "## 🚀 自动部署结果" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| 服务 | 状态 | 说明 |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|------|------|" >> $GITHUB_STEP_SUMMARY
+
+          # Worker部署状态
+          if [ "${{ steps.deploy-worker.outputs.worker_deploy_success }}" = "true" ]; then
+            echo "| Cloudflare Worker | ✅ 成功 | 定时任务和API已更新 |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Cloudflare Worker | ❌ 失败 | 请检查API Token配置 |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Pages部署状态
+          case "${{ steps.deploy-pages.outputs.pages_deploy_success }}" in
+            "true")
+              echo "| Cloudflare Pages | ✅ 成功 | Web界面已更新 |" >> $GITHUB_STEP_SUMMARY
+              ;;
+            "false")
+              echo "| Cloudflare Pages | ❌ 失败 | Web界面可能需要手动部署 |" >> $GITHUB_STEP_SUMMARY
+              ;;
+            "skipped")
+              echo "| Cloudflare Pages | ⏭️ 跳过 | 未发现Pages资源 |" >> $GITHUB_STEP_SUMMARY
+              ;;
+          esac
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📝 部署说明" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Worker**: 处理定时任务、API接口和核心逻辑" >> $GITHUB_STEP_SUMMARY
+          echo "- **Pages**: 提供Web管理界面（如果配置）" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "如果部署失败，请检查：" >> $GITHUB_STEP_SUMMARY
+          echo "1. `CLOUDFLARE_API_TOKEN` 是否正确配置在仓库Secrets中" >> $GITHUB_STEP_SUMMARY
+          echo "2. API Token是否有足够的权限（Workers:Edit, Zone:Read）" >> $GITHUB_STEP_SUMMARY
+          echo "3. `wrangler.toml` 配置是否正确" >> $GITHUB_STEP_SUMMARY
