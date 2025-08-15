@@ -1,6 +1,8 @@
+[English](README-en.md) | 中文
+
 # 🔍 IP地址纯净度检查工具
 
-专业的IP纯净度检测服务，基于Cloudflare Worker部署，支持ProxyCheck.io专业检测算法，提供完整的订阅链接管理和自动化检测功能。
+基于Cloudflare Worker部署，支持ProxyCheck.io专业检测算法，提供完整的订阅链接管理和自动化检测功能。
 
 ## 🚀 一键部署
 
@@ -8,16 +10,6 @@
 
 点击上面的按钮，几分钟内即可完成部署！
 
-## ✨ 功能特性
-
-- 🔍 **单IP检测**: 检测单个IP地址的纯净度和风险评分
-- 📋 **批量检测**: 同时检测多个IP地址，支持CSV导出
-- 📡 **订阅管理**: 管理和检测订阅链接中的IP地址
-- ⏰ **定时任务**: 每日自动检测和更新IP列表
-- 📊 **数据统计**: 详细的检测统计信息和历史记录
-- 🔧 **API集成**: 支持ProxyCheck.io和IPinfo.io API
-- 📱 **响应式设计**: 完美支持移动端和桌面端
-- 🎨 **现代UI**: 简洁美观的纯白背景设计
 
 ## 🛠️ 手动部署
 
@@ -114,102 +106,4 @@ wrangler deploy
 - 在"定时任务"标签页查看执行状态
 - 支持手动触发检测
 
-## 脚本使用
 
-本项目的核心功能由Python脚本驱动，您可以直接在本地运行。
-
-### 主要脚本
-
-- **`scripts/run_purity_check.py`**:
-  - **功能**: 从 `汇聚订阅.txt` 文件中读取订阅链接，检测所有IP地址的纯净度，并生成详细的CSV报告。
-  - **输出文件**: `subscription_ip_report.csv` (项目根目录)
-
-- **`scripts/generate_sorted_config.py`**:
-  - **功能**: 在 `run_purity_check.py` 的基础上，进一步根据IP纯净度和风险评分对节点进行排序，并生成一个优化后的Clash配置文件。
-  - **输出文件**: `sorted_clash.yaml` (项目根目录)
-
-### 使用方法
-
-1.  **配置订阅链接**:
-    - 将您的订阅链接填入项目根目录下的 `汇聚订阅.txt` 文件，每行一个。
-
-2.  **运行脚本**:
-    ```bash
-    # 运行基础的纯净度检测
-    python scripts/run_purity_check.py
-
-    # 运行检测并生成排序后的Clash配置文件
-    python scripts/generate_sorted_config.py
-    ```
-
-## 🔧 API接口
-
-- `GET /api/check-ip?ip=<IP地址>` - 检测单个IP地址
-- `POST /api/check-subscription` - 检测订阅链接
-- `GET /api/status` - 获取系统运行状态
-- `POST /api/manual-check` - 手动触发定时检测
-- `GET /api/clash-config` - 获取Clash配置文件
-
-## 🛠️ 技术栈
-
-- **后端**: Cloudflare Worker
-- **前端**: HTML5, CSS3, JavaScript (ES5兼容)
-- **存储**: Cloudflare KV Storage
-- **API**: ProxyCheck.io, IPinfo.io
-- **部署**: Wrangler CLI
-
-## 📞 故障排除
-
-### 常见问题
-
-1. **部署失败**
-   - 检查Wrangler登录状态：`wrangler whoami`
-   - 验证wrangler.toml配置格式
-   - 查看详细错误：`wrangler deploy --verbose`
-
-2. **JavaScript错误**
-   - 清除浏览器缓存
-   - 确认访问正确的Worker URL
-   - 检查浏览器控制台错误
-
-3. **API检测失败**
-   - 检查网络连接
-   - 验证API密钥配置
-   - 查看API使用额度
-
-### 获取帮助
-
-如果遇到问题，请提供：
-- 完整错误信息
-- 浏览器控制台日志
-- Worker部署日志
-- 操作步骤
-
-## 📚 文档
-
-- [部署后配置指南](docs/POST_DEPLOYMENT_SETUP.md)
-- [详细部署指南](docs/WORKER_DEPLOYMENT.md)
-- [快速开始指南](docs/QUICK_START.md)
-
-## 🤝 贡献
-
-欢迎提交Issue和Pull Request来改进这个项目！
-
-## 📄 许可证
-
-MIT License
-
----
-
-## 🎉 立即开始
-
-点击一键部署按钮，几分钟内即可拥有您自己的IP纯净度检查工具！
-
-[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/twj0/ip-address-purity-checker)
-
-部署完成后，您将获得一个类似这样的URL：
-```
-https://ip-purity-checker.your-username.workers.dev
-```
-
-开始享受专业的IP纯净度检测服务吧！

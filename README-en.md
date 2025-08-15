@@ -1,512 +1,95 @@
-# IP Address Purity Checker
+# 🔍 IP address purity check tool
 
-[![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org/)
-[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![GitHub Actions](https://img.shields.io/badge/GitHub%20Actions-enabled-brightgreen.svg)](https://github.com/features/actions)
-[![Cloudflare Workers](https://img.shields.io/badge/Cloudflare%20Workers-supported-orange.svg)](https://workers.cloudflare.com/)
-[![Vercel](https://img.shields.io/badge/Vercel-deployable-black.svg)](https://vercel.com/)
+based on Cloudflare Worker deployment, supports ProxyCheck.io professional detection algorithm, and provides complete subscription link management and automated detection functions.
 
-A powerful tool for detecting the purity of proxy node IP addresses, automatically filtering out clean IPs that are not from data centers/proxies/VPNs, and generating optimized Clash configuration files.
+## 🚀 One-click deployment
 
-English | [中文](README.md)
+[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/twj0/ip-address-purity-checker)
 
-## ✨ Key Features
+Click the button above and the deployment can be completed within a few minutes!
 
-- 🔍 **Smart IP Detection**: Dual detection mechanism using IPinfo.io and ip-api.com
-- 📡 **Multi-format Subscription Support**: Supports vmess, vless, trojan, ss, ssr protocols
-- 🎯 **Purity Filtering**: Automatically identifies and filters data center, CDN, proxy server IPs
-- ⚡ **Clash Config Generation**: Auto-generates Clash configs grouped by country and purity
-- 🤖 **Automated Checking**: Supports GitHub Actions scheduled checks
-- ☁️ **Multi-platform Deployment**: Supports Cloudflare Workers and Vercel deployment
-- 📊 **Detailed Reports**: Generates CSV reports with IP information and purity status
 
-## 📋 Table of Contents
+## 🛠️ Manual deployment
 
-- [Quick Start](#-quick-start)
-- [Installation](#-installation)
-- [Configuration](#-configuration)
-- [Usage](#-usage)
-- [API Configuration](#-api-configuration)
-- [Deployment Options](#-deployment-options)
-- [Project Structure](#-project-structure)
-- [Troubleshooting](#-troubleshooting)
-- [FAQ](#-faq)
-- [Contributing](#-contributing)
+If you wish to deploy manually or customize the configuration:
 
-## 🚀 Quick Start
-
-Want to try it immediately? Follow these steps for a quick start:
-
+### Step 1: Prepare the environment
 ```bash
-# 1. Clone the repository
-git clone https://github.com/twj0/ip-address-purity-checker.git
-cd ip-address-purity-checker
-
-# 2. Install dependencies
-pip install -r requirements.txt
-
-# 3. Environment check
-python scripts/check_environment.py
-
-# 4. Small batch test (recommended for first use)
-python scripts/test_small_batch.py
-
-# 5. Run full check (IPinfo.io token recommended for best results)
-export IPINFO_TOKEN="your_token_here"  # Optional but recommended
-python scripts/run_purity_check.py
-```
-
-**⚡ One-minute trial version:**
-```bash
-# Test basic functionality only, no token required
-python scripts/test_small_batch.py
-```
-
-**🎯 Production version:**
-```bash
-# Get free IPinfo.io token: https://ipinfo.io/signup
-export IPINFO_TOKEN="your_token_here"
-python scripts/dedup_purity_to_yaml.py
-```
-
-## 🚀 Installation
-
-### Requirements
-
-- Python 3.8+
-- pip package manager
-
-### Quick Install
-
-```bash
-# Clone the repository
-git clone https://github.com/twj0/ip-address-purity-checker.git
-cd ip-address-purity-checker
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Environment check
-python scripts/check_environment.py
-```
-
-### Dependencies
-
-```
-requests>=2.28.0
-lxml>=4.9.0
-PyYAML>=6.0
-tqdm>=4.64.0
-ipinfo>=4.4.0
-```
-
-## ⚙️ Configuration
-
-### 1. Subscription Links Configuration
-
-Create or edit the `汇聚订阅.txt` file with one subscription link per line:
-
-```
-https://example.com/subscription1
-https://example.com/subscription2
-# This is a comment line, will be ignored
-```
-
-### 2. Configuration File
-
-`config.json` contains all configuration options:
-
-```json
-{
-  "external_controller": "http://127.0.0.1:9090",
-  "secret": "",
-  "select_proxy_group": "GLOBAL",
-  "port_start": 42000,
-  "max_threads": 20,
-  "ip_info": {
-    "primary_provider": "ipinfo",
-    "fallback_provider": "ip-api",
-    "max_concurrent_requests": 10,
-    "ipinfo": {
-      "base_url": "https://ipinfo.io",
-      "rate_limit_per_minute": 1000,
-      "timeout": 10,
-      "max_retries": 2,
-      "retry_delay": 1.0
-    },
-    "ip_api": {
-      "base_url": "http://ip-api.com",
-      "rate_limit_per_minute": 45,
-      "timeout": 8,
-      "max_retries": 2,
-      "retry_delay": 1.5
-    }
-  }
-}
-```
-
-## 🔑 API Configuration
-
-### IPinfo.io Token (Highly Recommended)
-
-Getting a free IPinfo.io API token can significantly improve performance:
-
-1. Visit [IPinfo.io](https://ipinfo.io/signup) to register an account
-2. Get API token (free account: 50,000 requests/month)
-3. Configure the token:
-
-**Method 1: Environment Variable**
-```bash
-export IPINFO_TOKEN="your_token_here"
-```
-
-**Method 2: File Configuration**
-```bash
-echo "your_token_here" > ipinfo-token.txt
-```
-
-**Method 3: GitHub Secrets (for Actions)**
-Add `IPINFO_TOKEN` secret in your GitHub repository settings.
-
-### Performance Comparison
-
-| Configuration | Rate Limit | Concurrency | Accuracy |
-|---------------|------------|-------------|----------|
-| No Token | 45/minute | 2-5 | Basic |
-| With Token | 1000/minute | 10-20 | Enhanced |
-
-## 📖 Usage
-
-### Basic Usage
-
-```bash
-# Environment check
-python scripts/check_environment.py
-
-# Small batch test
-python scripts/test_small_batch.py
-
-# Run IP purity check
-python scripts/run_purity_check.py
-
-# Generate deduplicated Clash config
-python scripts/dedup_purity_to_yaml.py
-```
-
-### Output Files
-
-- `subscription_ip_report.csv`: Detailed IP check report
-- `sorted_clash.yaml`: Optimized Clash configuration file based on purity and risk score
-- `dedup_purity_clash.yml`: Optimized Clash configuration file
-
-### Advanced Usage
-
-```bash
-# Batch processing script
-python scripts/ipinfo_batch_processor.py
-
-# Generate sorted configuration
-python scripts/generate_sorted_config.py
-
-# Debug mode execution
-PYTHONPATH=. python -c "
-import logging
-logging.basicConfig(level=logging.DEBUG)
-from scripts.run_purity_check import main
-main()
-"
-```
-
-### Output Examples
-
-**CSV Report Format:**
-```csv
-host,ip,pure,country,regionName,city,isp,org,as
-example.com,1.2.3.4,yes,United States,California,Los Angeles,ISP Name,Organization,AS12345
-```
-
-**Clash Configuration Structure:**
-```yaml
-proxies:
-  - name: "Node Name"
-    type: vmess
-    server: 1.2.3.4
-    port: 443
-    # ... other configurations
-
-proxy-groups:
-  - name: "✈️ PROXY"
-    type: select
-    proxies: ["⚡ URL-TEST", "✅ PURE", "AUTO-US"]
-
-  - name: "⚡ URL-TEST"
-    type: url-test
-    proxies: ["Pure Node 1", "Pure Node 2"]
-
-  - name: "✅ PURE"
-    type: select
-    proxies: ["All Pure Nodes"]
-```
-
-## 🌐 Deployment Options
-
-### GitHub Actions
-
-The project includes pre-configured GitHub Actions workflows:
-
-```yaml
-# .github/workflows/ipinfo-purity-check.yml
-name: IPinfo.io IP Purity Check
-on:
-  schedule:
-    - cron: '0 16 * * *'  # Run daily at UTC 16:00
-  workflow_dispatch:
-```
-
-Setup steps:
-1. Fork this repository
-2. Add `IPINFO_TOKEN` in Settings > Secrets
-3. Enable Actions
-4. Check Artifacts for results
-
-### Cloudflare Workers
-
-```bash
-# Install Wrangler CLI
 npm install -g wrangler
 
-# Login to Cloudflare
-wrangler login
-
-# Deploy Worker
-wrangler deploy
-```
-
-### Vercel Deployment
-
-```bash
-# Install Vercel CLI
-npm install -g vercel
-
-# Deploy to Vercel
-vercel --prod
-```
-
-Or click for one-click deployment:
-
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/twj0/ip-address-purity-checker)
-
-### Manual Cloudflare Worker Deployment
-
-If you prefer to deploy the worker manually, follow these steps:
-
-**Step 1: Prepare the environment**
-```bash
-# Install Node.js (if not already installed)
-# Download from: https://nodejs.org/
-
-# Install the Wrangler CLI
-npm install -g wrangler
-
-# Verify the installation
 wrangler --version
 ```
 
-**Step 2: Log in to Cloudflare**
+### Step 2: Log in to Cloudflare
 ```bash
-# Log in to your Cloudflare account
 wrangler login
 
-# Verify your login status
 wrangler whoami
 ```
 
-**Step 3: Clone and Deploy**
+### Step 3: Cloning and Deployment
 ```bash
-# Clone the project
 git clone https://github.com/twj0/ip-address-purity-checker.git
+
 cd ip-address-purity-checker
 
-# Deploy the worker
 wrangler deploy
+
+wrangler tail
 ```
 
-**Step 4: Configure KV Storage (Optional)**
+### Step 4: Configure KV storage (optional)
 ```bash
-# Create a KV namespace (for data persistence)
+
 wrangler kv namespace create "IP_CACHE"
-
-# Copy the returned ID, then update the wrangler.toml file
-# by uncommenting the [[kv_namespaces]] section and pasting the ID.
-# Then, redeploy the worker.
+# Copy the returned ID and update the KV configuration in wrangler.toml
 wrangler deploy
 ```
-> **Note**: KV storage is optional. The worker will function without it, but it will not be able to save check history or subscription data.
 
+> **Note**: KV storage is optional. Worker works fine without KV storage, but it cannot save detection history and subscription data.
 
+## ⚙️ Configuration instructions
 
-## 📁 Project Structure
+### API key configuration (optional but recommended)
 
-```
-ip-address-purity-checker/
-├── src/
-│   └── ip_checker/
-│       ├── __init__.py
-│       ├── config.py          # Configuration management
-│       ├── ip_utils.py        # IP checking core logic
-│       ├── ipinfo_provider.py # IPinfo.io API wrapper
-│       ├── subscription.py    # Subscription parsing
-│       └── clash.py          # Clash config generation
-├── scripts/
-│   ├── run_purity_check.py   # Main checking script
-│   ├── dedup_purity_to_yaml.py # Config generation script
-│   ├── check_environment.py  # Environment check
-│   └── test_*.py             # Test scripts
-├── api/
-│   ├── check-ip.py           # Vercel API endpoint
-│   └── scheduled-check.py    # Scheduled check API
-├── cloudflare/
-│   └── worker.js             # Cloudflare Worker
-├── .github/workflows/        # GitHub Actions
-├── config.json              # Main configuration file
-├── requirements.txt          # Python dependencies
-├── wrangler.toml            # Cloudflare configuration
-├── vercel.json              # Vercel configuration
-└── 汇聚订阅.txt              # Subscription links file
-```
+In order to obtain higher detection accuracy (from 70% to 95%+), it is recommended to configure the API key:
 
-## ❓ FAQ
+1. **ProxyCheck.io API Key**
+   - Free amount: 1000 times/day
+   - Get the address: https://proxycheck.io/api/
+   - Configure in the Settings tab of the web interface
 
-### Q: What to do when encountering 429 errors (rate limiting)?
+2. **IPinfo.io Token**
+   - Free amount: 50,000 times/month
+   - Get the address: https://ipinfo.io/signup
+   - Configure in the Settings tab of the web interface
 
-A: This is caused by API rate limiting. Solutions:
-1. Get an IPinfo.io token (recommended)
-2. Reduce concurrency
-3. Increase request intervals
+### Subscription Management
 
-### Q: Why do some IP detections fail?
+1. Add your subscription link in the Subscription Management tab
+2. The system will automatically parse and detect the IP address in it
+3. Supports multiple subscription formats (Clash, V2Ray, Shadowsocks, etc.)
+4. Data is stored securely in Cloudflare KV
 
-A: Possible reasons:
-- Network connection issues
-- API service temporarily unavailable
-- Invalid or private IP addresses
+## 📖 User Guide
 
-### Q: How to improve detection accuracy?
+### Single IP detection
+1. Enter the IP address on the "Single IP Detection" tab
+2. Click the "Detection IP" button
+3. View detailed test results
 
-A: Recommendations:
-1. Use IPinfo.io paid token for privacy data
-2. Regularly update blacklist keywords
-3. Combine multiple data sources for verification
+### Batch inspection
+1. Enter multiple IP addresses (one per line) on the "Batch Detection" tab page
+2. Click the "Batch Detection" button
+3. Wait for the detection to be completed and the CSV results can be exported
 
-### Q: Which proxy protocols are supported?
+### Subscription Management
+1. Add a subscription name and link
+2. Click the "Test" button to verify the subscription
+3. Use Check All Subscriptions for batch testing
 
-A: Supports mainstream protocols:
-- VMess
-- VLESS
-- Trojan
-- Shadowsocks (SS)
-- ShadowsocksR (SSR)
-- Clash YAML format
-
-### Q: How to optimize performance for large batch processing?
-
-A: Performance optimization recommendations:
-1. **Get IPinfo.io paid token**: Increase rate limit to 50,000/month
-2. **Adjust concurrency**: Tune `max_concurrent_requests` based on network environment
-3. **Batch processing**: Split large IP sets into smaller batches
-4. **Cache results**: Avoid duplicate queries for same IPs
-5. **Use proxy**: Use proxy in network-restricted environments
-
-### Q: What are the purity determination criteria?
-
-A: Determination criteria include:
-1. **IPinfo.io privacy data**: hosting, vpn, proxy, tor fields
-2. **Keyword matching**: Data center keywords in ISP/organization names
-3. **Blacklist**: Known cloud service providers and CDN providers
-
-**Blacklist keyword examples:**
-```
-alibaba, aws, google, microsoft, azure, cloudflare,
-akamai, ovh, hetzner, digitalocean, vultr, linode
-```
-
-### Q: How to customize purity rules?
-
-A: You can modify the `is_pure_ip` function in `src/ip_checker/ip_utils.py`:
-
-```python
-def is_pure_ip(ip_info: Optional[Dict]) -> bool:
-    # Add custom rules
-    custom_blacklist = ["your_custom_keyword"]
-
-    # Existing logic...
-    for kw in custom_blacklist:
-        if kw in text.lower():
-            return False
-
-    return True
-```
-
-## 🔧 Troubleshooting
-
-### Common Errors and Solutions
-
-**1. Connection Timeout Error**
-```
-requests.exceptions.ConnectTimeout: HTTPSConnectionPool(host='ipinfo.io', port=443)
-```
-Solutions:
-- Check network connection
-- Configure proxy settings
-- Increase timeout duration
-
-**2. Rate Limiting Error**
-```
-HTTP 429: Too Many Requests
-```
-Solutions:
-- Get IPinfo.io token
-- Reduce concurrency
-- Increase request intervals
-
-**3. Module Import Error**
-```
-ModuleNotFoundError: No module named 'src'
-```
-Solutions:
-```bash
-export PYTHONPATH="${PYTHONPATH}:$(pwd)"
-# or
-python -m scripts.run_purity_check
-```
-
-### Performance Monitoring
-
-**Monitoring Script Example:**
-```bash
-#!/bin/bash
-# monitor_performance.sh
-
-echo "Starting performance monitoring..."
-start_time=$(date +%s)
-
-python scripts/run_purity_check.py 2>&1 | tee performance.log
-
-end_time=$(date +%s)
-duration=$((end_time - start_time))
-
-echo "Execution time: ${duration} seconds"
-echo "Success rate: $(grep -c "success" performance.log)"
-echo "Failure rate: $(grep -c "failed" performance.log)"
-```
-
-**Log Analysis:**
-```bash
-# View error statistics
-grep "ERROR" logs/*.log | cut -d: -f3 | sort | uniq -c
-
-# View API response times
-grep "response_time" logs/*.log | awk '{sum+=$NF; count++} END {print "Average response time:", sum/count, "ms"}'
-```
-
+### Timing tasks
+- The system automatically performs detection at 00:00 Beijing time every day
+- Check the execution status on the "Timed Tasks" tab
+- Support manual trigger detection
 
